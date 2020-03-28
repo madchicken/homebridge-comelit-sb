@@ -1,4 +1,4 @@
-[![npm version](https://badge.fury.io/js/homebridge-comelit-platform.svg)](https://badge.fury.io/js/homebridge-comelit-platform)
+[![npm version](https://badge.fury.io/js/homebridge-comelit-sb.svg)](https://badge.fury.io/js/homebridge-comelit-sb)
 
 # Comelit Serial Bridge integration for Homebridge
 
