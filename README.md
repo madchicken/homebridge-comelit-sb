@@ -57,5 +57,3 @@ You can temporary disable alarm by adding `disable_alarm: true` in your config.
 ## Screenshots
 
 ![Home application screenshot](https://github.com/madchicken/homebridge-comelit-hub/raw/master/images/home.png)
-
-![Grafana screenshot](https://github.com/madchicken/homebridge-comelit-hub/raw/master/images/grafana.png)
