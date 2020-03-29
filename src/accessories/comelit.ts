@@ -24,7 +24,7 @@ export abstract class ComelitAccessory<T extends DeviceData> {
     this.device = device;
     this.client = client;
     this.name = name;
-    this.uuid_base = device.objectId;
+    this.uuid_base = device.id;
     this.services = this.initServices();
     this.reachable = true;
     this.category = category;
