@@ -1,6 +1,6 @@
 {
   "name": "homebridge-comelit-sb-platform",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "author": "Pierpaolo Follia",
   "repository": {
     "type": "git",
@@ -14,7 +14,7 @@
     "serial bridge"
   ],
   "engines": {
-    "node": ">11.10.0",
+    "node": ">8.15.1",
     "homebridge": ">=0.2.0"
   },
   "main": "dist/index.js",
@@ -45,7 +45,7 @@
   "dependencies": {
     "@sentry/node": "5.12.2",
     "chalk": "^3.0.0",
-    "comelit-client": "link:../comelit-client",
+    "comelit-client": "1.2.0",
     "homebridge": "^0.4.50",
     "lodash": "^4.17.15",
     "typescript": "^3.7.4",
