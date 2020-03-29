@@ -80,7 +80,7 @@ export class ComelitSbPlatform {
           this.log(`Light ID: ${id}, ${deviceData.descrizione}`);
           this.mappedAccessories.set(
             id,
-            new Lightbulb(this.log, deviceData, `Light ${deviceData.descrizione}`, this.client)
+            new Lightbulb(this.log, deviceData, deviceData.descrizione, this.client)
           );
         }
       });
@@ -92,12 +92,7 @@ export class ComelitSbPlatform {
           this.log(`Thermostat ID: ${id}, ${deviceData.descrizione}`);
           this.mappedAccessories.set(
             id,
-            new Thermostat(
-              this.log,
-              deviceData,
-              `Thermostat ${deviceData.descrizione}`,
-              this.client
-            )
+            new Thermostat(this.log, deviceData, deviceData.descrizione, this.client)
           );
         }
       });
@@ -112,7 +107,7 @@ export class ComelitSbPlatform {
             new Blind(
               this.log,
               deviceData,
-              `Blind ${deviceData.descrizione}`,
+              deviceData.descrizione,
               this.client,
               this.config.blind_closing_time
             )
@@ -127,7 +122,7 @@ export class ComelitSbPlatform {
           this.log(`Outlet ID: ${id}, ${deviceData.descrizione}`);
           this.mappedAccessories.set(
             id,
-            new Outlet(this.log, deviceData, `Outlet ${deviceData.descrizione}`, this.client)
+            new Outlet(this.log, deviceData, deviceData.descrizione, this.client)
           );
         }
       });
@@ -139,12 +134,7 @@ export class ComelitSbPlatform {
           this.log(`Supplier ID: ${id}, ${deviceData.descrizione}`);
           this.mappedAccessories.set(
             id,
-            new PowerSupplier(
-              this.log,
-              deviceData,
-              `Supplier ${deviceData.descrizione}`,
-              this.client
-            )
+            new PowerSupplier(this.log, deviceData, deviceData.descrizione, this.client)
           );
         }
       });
