@@ -1,4 +1,4 @@
-[![npm version](https://badge.fury.io/js/homebridge-comelit-sb.svg)](https://badge.fury.io/js/homebridge-comelit-sb)
+[![npm version](https://badge.fury.io/js/homebridge-comelit-sb-platform.svg)](https://badge.fury.io/js/homebridge-comelit-sb-platform)
 
 # Comelit Serial Bridge integration for Homebridge
 
@@ -27,7 +27,7 @@ Add the following section to the platform array in the Homebridge config.json fi
 
 ```json
 {
-  "platform": "Comelit",
+  "platform": "Comelit Serial Bridge",
   "name": "My Home",
   "bridge-url": "192.168.1.2"
 }
@@ -41,7 +41,7 @@ to mount the accessory.
 
 ```json
 {
-  "platform": "Comelit",
+  "platform": "Comelit Serial Bridge",
   "name": "My Home",
   "alarm_code": "12345678",
   "alarm_address": "192.168.1.3"
