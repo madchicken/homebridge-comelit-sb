@@ -1,8 +1,7 @@
 {
-  "headerDisplay": "Make sure to give set the right IP address for the Serial Bridge. If the bridge WEB UI doens't ron on port 80, please specify the port as well.",
+  "headerDisplay": "Make sure to give set the right IP address for the Serial Bridge. If the bridge WEB UI doesn't ron on port 80, please specify the port as well.",
   "footerDisplay": "See [homebridge-comelit-sb](https://github.com/madchicken/homebridge-comelit-sb) for more information and instructions.",
-  "singular": false,
-  "pluginAlias": "Comelit",
+  "pluginAlias": "Comelit Serial Bridge",
   "pluginType": "platform",
   "schema": {
     "type": "object",
