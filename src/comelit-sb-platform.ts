@@ -213,7 +213,7 @@ export class ComelitSbPlatform {
         this.log(e);
         Sentry.captureException(e);
       }
-      this.keepAliveTimer.refresh();
+      this.keepAlive();
     }, ComelitSbPlatform.KEEP_ALIVE_TIMEOUT);
   }
 
