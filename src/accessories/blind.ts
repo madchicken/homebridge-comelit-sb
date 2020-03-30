@@ -67,7 +67,7 @@ export class Blind extends ComelitAccessory<BlindDeviceData> {
             `Setting position to ${position}%. Current position is ${currentPosition}. Delta is ${delta}`
           );
           if (delta !== 0) {
-            await this.client.toggleDeviceStatus(parseInt(this.device.objectId), status);
+            await this.client.toggleDeviceStatus(parseInt(this.device.objectId), status, 'shutter');
             this.lastCommandTime = new Date().getTime();
             this.timeout = setTimeout(async () => {
               this.resetTimeout();
@@ -90,7 +90,8 @@ export class Blind extends ComelitAccessory<BlindDeviceData> {
     this.timeout = null;
     await this.client.toggleDeviceStatus(
       parseInt(this.device.objectId),
-      this.positionState === PositionState.DECREASING ? ObjectStatus.ON : ObjectStatus.OFF
+      this.positionState === PositionState.DECREASING ? ObjectStatus.ON : ObjectStatus.OFF,
+      'shutter'
     ); // stop the blind
   }
 

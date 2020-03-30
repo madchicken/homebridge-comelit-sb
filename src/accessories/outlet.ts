@@ -50,7 +50,7 @@ export class Outlet extends ComelitAccessory<OutletDeviceData> {
       .on(CharacteristicEventTypes.SET, async (yes: boolean, callback: Function) => {
         const status = yes ? Outlet.ON : Outlet.OFF;
         try {
-          await this.client.toggleDeviceStatus(parseInt(this.device.objectId), status);
+          await this.client.toggleDeviceStatus(parseInt(this.device.objectId), status, 'other');
           this.device.status = `${status}`;
           callback();
         } catch (e) {
