@@ -58,12 +58,18 @@ export class ComelitSbPlatform {
 
   async accessories(callback: (array: any[]) => void) {
     try {
-      this.client = new ComelitSbClient(
-        this.config.bridge_url,
-        this.config.bridge_port,
-        this.updateAccessory.bind(this),
-        this.log
-      );
+      if (this.config.bridge_url) {
+        this.client = new ComelitSbClient(
+          this.config.bridge_url,
+          this.config.bridge_port,
+          this.updateAccessory.bind(this),
+          this.log
+        );
+      } else {
+        this.log(`bridge_url config missing, skipping config`);
+        callback([]);
+        return;
+      }
       const login = await this.client.login();
       if (login === false) {
         this.log('Not logged, returning empty accessory array');
@@ -186,6 +192,7 @@ export class ComelitSbPlatform {
     } catch (e) {
       this.log(e);
       Sentry.captureException(e);
+      callback([]);
     }
   }
 

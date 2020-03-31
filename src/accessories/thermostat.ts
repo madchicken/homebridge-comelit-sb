@@ -3,6 +3,7 @@ import {
   ClimaMode,
   ClimaOnOff,
   ComelitSbClient,
+  STATUS_OFF,
   STATUS_ON,
   ThermoSeason,
   ThermostatDeviceData,
@@ -166,12 +167,10 @@ export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
 
   isOff(): boolean {
     return (
-      this.device.auto_man === ClimaMode.OFF_AUTO || this.device.auto_man === ClimaMode.OFF_MANUAL
+      this.device.auto_man === ClimaMode.OFF_AUTO ||
+      this.device.auto_man === ClimaMode.OFF_MANUAL ||
+      this.device.status == STATUS_OFF
     );
-  }
-
-  isRunning(): boolean {
-    return this.device.status === STATUS_ON;
   }
 
   isAuto(): boolean {

@@ -29,7 +29,8 @@ Add the following section to the platform array in the Homebridge config.json fi
 {
   "platform": "Comelit Serial Bridge",
   "name": "My Home",
-  "bridge-url": "192.168.1.2"
+  "bridge_url": "192.168.1.2",
+  "bridge_port": 80
 }
 ```
 
@@ -43,6 +44,8 @@ to mount the accessory.
 {
   "platform": "Comelit Serial Bridge",
   "name": "My Home",
+  "bridge_url": "192.168.1.2",
+  "bridge_port": 80,
   "alarm_code": "12345678",
   "alarm_address": "192.168.1.3"
 }
