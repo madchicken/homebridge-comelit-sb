@@ -167,9 +167,7 @@ export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
 
   isOff(): boolean {
     return (
-      this.device.auto_man === ClimaMode.OFF_AUTO ||
-      this.device.auto_man === ClimaMode.OFF_MANUAL ||
-      this.device.status == STATUS_OFF
+      this.device.auto_man === ClimaMode.OFF_AUTO || this.device.auto_man === ClimaMode.OFF_MANUAL
     );
   }
 
