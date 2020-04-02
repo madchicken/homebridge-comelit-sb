@@ -10,9 +10,6 @@ import { Homebridge } from '../types';
 
 import Timeout = NodeJS.Timeout;
 
-const Sentry = require('@sentry/node');
-Sentry.init({ dsn: 'https://893584b4503045ecaad2077e72aaedce@sentry.io/5178341' });
-
 export interface HubConfig {
   bridge_url: string;
   bridge_port?: number;
@@ -93,7 +90,6 @@ export class ComelitSbPlatform {
         });
       } catch (e) {
         this.log(e);
-        Sentry.captureException(e);
       }
       const thermostatIds = [...this.homeIndex.thermostatsIndex.keys()];
       this.log(`Found ${thermostatIds.length} thermostats`);
@@ -110,7 +106,6 @@ export class ComelitSbPlatform {
         });
       } catch (e) {
         this.log(e);
-        Sentry.captureException(e);
       }
       const shadeIds = [...this.homeIndex.blindsIndex.keys()];
       this.log(`Found ${shadeIds.length} shades`);
@@ -133,7 +128,6 @@ export class ComelitSbPlatform {
         });
       } catch (e) {
         this.log(e);
-        Sentry.captureException(e);
       }
       const outletIds = [...this.homeIndex.outletsIndex.keys()];
       this.log(`Found ${outletIds.length} outlets`);
@@ -150,7 +144,6 @@ export class ComelitSbPlatform {
         });
       } catch (e) {
         this.log(e);
-        Sentry.captureException(e);
       }
       const supplierIds = [...this.homeIndex.supplierIndex.keys()];
       this.log(`Found ${supplierIds.length} suppliers`);
@@ -167,7 +160,6 @@ export class ComelitSbPlatform {
         });
       } catch (e) {
         this.log(e);
-        Sentry.captureException(e);
       }
 
       this.log(`Found ${this.mappedAccessories.size} accessories`);
@@ -191,7 +183,6 @@ export class ComelitSbPlatform {
       callback([...this.mappedAccessories.values()]);
     } catch (e) {
       this.log(e);
-      Sentry.captureException(e);
       callback([]);
     }
   }
@@ -203,7 +194,7 @@ export class ComelitSbPlatform {
         accessory.update(data);
       }
     } catch (e) {
-      Sentry.captureException(e);
+      this.log(e);
     }
   }
 
@@ -213,7 +204,6 @@ export class ComelitSbPlatform {
         await this.client.updateHomeStatus(this.homeIndex);
       } catch (e) {
         this.log(e);
-        Sentry.captureException(e);
       }
       this.keepAlive();
     }, ComelitSbPlatform.KEEP_ALIVE_TIMEOUT);
