@@ -19,6 +19,10 @@ export interface HubConfig {
 }
 
 const DEFAULT_UPDATE_TIMEOUT_SEC = 5;
+const EMPTY_ADVANCED_CONF = {
+  update_rate_sec: null,
+  blind_closing_time: null,
+};
 
 export class ComelitSbPlatform {
   public mappedAccessories: Map<string, ComelitAccessory<DeviceData>> = new Map<
@@ -54,8 +58,8 @@ export class ComelitSbPlatform {
   async accessories(callback: (array: any[]) => void) {
     try {
       if (this.config.bridge_url) {
-        this.config.advanced.update_rate_sec =
-          this.config.advanced.update_rate_sec || DEFAULT_UPDATE_TIMEOUT_SEC;
+        const advanced = this.config.advanced || EMPTY_ADVANCED_CONF;
+        advanced.update_rate_sec = advanced.update_rate_sec || DEFAULT_UPDATE_TIMEOUT_SEC;
         this.client = new ComelitSbClient(
           this.config.bridge_url,
           this.config.bridge_port,
