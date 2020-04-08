@@ -5,7 +5,6 @@ import { Thermostat } from './accessories/thermostat';
 import { Blind } from './accessories/blind';
 import { Outlet } from './accessories/outlet';
 import { PowerSupplier } from './accessories/power-supplier';
-import { VedoAlarm } from './accessories/vedo-alarm';
 import { Homebridge } from '../types';
 
 import Timeout = NodeJS.Timeout;
@@ -13,16 +12,15 @@ import Timeout = NodeJS.Timeout;
 export interface HubConfig {
   bridge_url: string;
   bridge_port?: number;
-  blind_closing_time?: number;
-  disable_alarm?: boolean;
-  alarm_code?: string;
-  alarm_address?: string;
-  refresh_rate?: number;
+  advanced: {
+    blind_closing_time?: number;
+    update_rate_sec?: number;
+  };
 }
 
-export class ComelitSbPlatform {
-  static KEEP_ALIVE_TIMEOUT = 5000;
+const DEFAULT_UPDATE_TIMEOUT_SEC = 5;
 
+export class ComelitSbPlatform {
   public mappedAccessories: Map<string, ComelitAccessory<DeviceData>> = new Map<
     string,
     ComelitAccessory<DeviceData>
@@ -56,6 +54,8 @@ export class ComelitSbPlatform {
   async accessories(callback: (array: any[]) => void) {
     try {
       if (this.config.bridge_url) {
+        this.config.advanced.update_rate_sec =
+          this.config.advanced.update_rate_sec || DEFAULT_UPDATE_TIMEOUT_SEC;
         this.client = new ComelitSbClient(
           this.config.bridge_url,
           this.config.bridge_port,
@@ -74,116 +74,119 @@ export class ComelitSbPlatform {
       }
       this.log('Building accessories list...');
       this.homeIndex = await this.client.fecthHomeIndex();
-      const lightIds = [...this.homeIndex.lightsIndex.keys()];
-      this.log(`Found ${lightIds.length} lights`);
-
-      try {
-        lightIds.forEach(id => {
-          const deviceData = this.homeIndex.lightsIndex.get(id);
-          if (deviceData) {
-            this.log(`Light ID: ${id}, ${deviceData.descrizione}`);
-            this.mappedAccessories.set(
-              id,
-              new Lightbulb(this.log, deviceData, deviceData.descrizione, this.client)
-            );
-          }
-        });
-      } catch (e) {
-        this.log(e);
-      }
-      const thermostatIds = [...this.homeIndex.thermostatsIndex.keys()];
-      this.log(`Found ${thermostatIds.length} thermostats`);
-      try {
-        thermostatIds.forEach(id => {
-          const deviceData = this.homeIndex.thermostatsIndex.get(id);
-          if (deviceData) {
-            this.log(`Thermostat ID: ${id}, ${deviceData.descrizione}`);
-            this.mappedAccessories.set(
-              id,
-              new Thermostat(this.log, deviceData, deviceData.descrizione, this.client)
-            );
-          }
-        });
-      } catch (e) {
-        this.log(e);
-      }
-      const shadeIds = [...this.homeIndex.blindsIndex.keys()];
-      this.log(`Found ${shadeIds.length} shades`);
-      try {
-        shadeIds.forEach(id => {
-          const deviceData = this.homeIndex.blindsIndex.get(id);
-          if (deviceData) {
-            this.log(`Blind ID: ${id}, ${deviceData.descrizione}`);
-            this.mappedAccessories.set(
-              id,
-              new Blind(
-                this.log,
-                deviceData,
-                deviceData.descrizione,
-                this.client,
-                this.config.blind_closing_time
-              )
-            );
-          }
-        });
-      } catch (e) {
-        this.log(e);
-      }
-      const outletIds = [...this.homeIndex.outletsIndex.keys()];
-      this.log(`Found ${outletIds.length} outlets`);
-      try {
-        outletIds.forEach(id => {
-          const deviceData = this.homeIndex.outletsIndex.get(id);
-          if (deviceData) {
-            this.log(`Outlet ID: ${id}, ${deviceData.descrizione}`);
-            this.mappedAccessories.set(
-              id,
-              new Outlet(this.log, deviceData, deviceData.descrizione, this.client)
-            );
-          }
-        });
-      } catch (e) {
-        this.log(e);
-      }
-      const supplierIds = [...this.homeIndex.supplierIndex.keys()];
-      this.log(`Found ${supplierIds.length} suppliers`);
-      try {
-        supplierIds.forEach(id => {
-          const deviceData = this.homeIndex.supplierIndex.get(id);
-          if (deviceData) {
-            this.log(`Supplier ID: ${id}, ${deviceData.descrizione}`);
-            this.mappedAccessories.set(
-              id,
-              new PowerSupplier(this.log, deviceData, deviceData.descrizione, this.client)
-            );
-          }
-        });
-      } catch (e) {
-        this.log(e);
-      }
-
+      this.mapLights();
+      this.mapThermostats();
+      this.mapBlinds();
+      this.mapOutlets();
+      this.mapSuppliers();
       this.log(`Found ${this.mappedAccessories.size} accessories`);
-      this.log('Subscribed to root object');
-
-      if (!this.config.disable_alarm) {
-        if (this.config.alarm_code) {
-          const alarmAddress = this.config.alarm_address;
-          this.log(`Alarm is enabled, mapping it at ${alarmAddress}`);
-          this.keepAlive(); // install keepalive (home index updater)
-          callback([
-            ...this.mappedAccessories.values(),
-            new VedoAlarm(this.log, alarmAddress, this.config.alarm_code),
-          ]);
-          return;
-        } else {
-          this.log('Alarm enabled but not properly configured: missing access code');
-        }
-      }
-      this.keepAlive(); // install keepalive (home index updater)
       callback([...this.mappedAccessories.values()]);
+      this.keepAlive(); // install keepalive (home index updater)
     } catch (e) {
       this.log(e);
       callback([]);
+    }
+  }
+
+  private mapSuppliers() {
+    const supplierIds = [...this.homeIndex.supplierIndex.keys()];
+    this.log(`Found ${supplierIds.length} suppliers`);
+    try {
+      supplierIds.forEach(id => {
+        const deviceData = this.homeIndex.supplierIndex.get(id);
+        if (deviceData) {
+          this.log(`Supplier ID: ${id}, ${deviceData.descrizione}`);
+          this.mappedAccessories.set(
+            id,
+            new PowerSupplier(this.log, deviceData, deviceData.descrizione, this.client)
+          );
+        }
+      });
+    } catch (e) {
+      this.log(e);
+    }
+  }
+
+  private mapOutlets() {
+    const outletIds = [...this.homeIndex.outletsIndex.keys()];
+    this.log(`Found ${outletIds.length} outlets`);
+    try {
+      outletIds.forEach(id => {
+        const deviceData = this.homeIndex.outletsIndex.get(id);
+        if (deviceData) {
+          this.log(`Outlet ID: ${id}, ${deviceData.descrizione}`);
+          this.mappedAccessories.set(
+            id,
+            new Outlet(this.log, deviceData, deviceData.descrizione, this.client)
+          );
+        }
+      });
+    } catch (e) {
+      this.log(e);
+    }
+  }
+
+  private mapBlinds() {
+    const shadeIds = [...this.homeIndex.blindsIndex.keys()];
+    this.log(`Found ${shadeIds.length} shades`);
+    try {
+      shadeIds.forEach(id => {
+        const deviceData = this.homeIndex.blindsIndex.get(id);
+        if (deviceData) {
+          this.log(`Blind ID: ${id}, ${deviceData.descrizione}`);
+          this.mappedAccessories.set(
+            id,
+            new Blind(
+              this.log,
+              deviceData,
+              deviceData.descrizione,
+              this.client,
+              this.config.advanced.blind_closing_time
+            )
+          );
+        }
+      });
+    } catch (e) {
+      this.log(e);
+    }
+  }
+
+  private mapThermostats() {
+    const thermostatIds = [...this.homeIndex.thermostatsIndex.keys()];
+    this.log(`Found ${thermostatIds.length} thermostats`);
+    try {
+      thermostatIds.forEach(id => {
+        const deviceData = this.homeIndex.thermostatsIndex.get(id);
+        if (deviceData) {
+          this.log(`Thermostat ID: ${id}, ${deviceData.descrizione}`);
+          this.mappedAccessories.set(
+            id,
+            new Thermostat(this.log, deviceData, deviceData.descrizione, this.client)
+          );
+        }
+      });
+    } catch (e) {
+      this.log(e);
+    }
+  }
+
+  private mapLights() {
+    const lightIds = [...this.homeIndex.lightsIndex.keys()];
+    this.log(`Found ${lightIds.length} lights`);
+
+    try {
+      lightIds.forEach(id => {
+        const deviceData = this.homeIndex.lightsIndex.get(id);
+        if (deviceData) {
+          this.log(`Light ID: ${id}, ${deviceData.descrizione}`);
+          this.mappedAccessories.set(
+            id,
+            new Lightbulb(this.log, deviceData, deviceData.descrizione, this.client)
+          );
+        }
+      });
+    } catch (e) {
+      this.log(e);
     }
   }
 
@@ -206,7 +209,7 @@ export class ComelitSbPlatform {
         this.log(e);
       }
       this.keepAlive();
-    }, ComelitSbPlatform.KEEP_ALIVE_TIMEOUT);
+    }, this.config.advanced.update_rate_sec * 1000);
   }
 
   private async shutdown() {

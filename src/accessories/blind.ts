@@ -19,7 +19,6 @@ export class Blind extends ComelitAccessory<BlindDeviceData> {
 
   private coveringService: Service;
   private timeout: Timeout;
-  private lastCommandTime: number;
   private readonly closingTime: number;
   private positionState: number;
 
@@ -62,17 +61,10 @@ export class Blind extends ComelitAccessory<BlindDeviceData> {
             Characteristic.CurrentPosition
           ).value as number;
           const status = position < currentPosition ? ObjectStatus.OFF : ObjectStatus.ON;
-          const delta = currentPosition - position;
-          this.log(
-            `Setting position to ${position}%. Current position is ${currentPosition}. Delta is ${delta}`
-          );
-          if (delta !== 0) {
-            await this.client.toggleDeviceStatus(parseInt(this.device.objectId), status, 'shutter');
-            this.lastCommandTime = new Date().getTime();
-            this.timeout = setTimeout(async () => {
-              this.resetTimeout();
-            }, (this.closingTime * Math.abs(delta)) / 100);
-          }
+          await this.client.toggleDeviceStatus(parseInt(this.device.objectId), status, 'shutter');
+          this.timeout = setTimeout(async () => {
+            this.resetTimeout();
+          }, this.closingTime);
           callback();
         } catch (e) {
           callback(e);
@@ -97,56 +89,27 @@ export class Blind extends ComelitAccessory<BlindDeviceData> {
 
   public update(data: BlindDeviceData) {
     const status = parseInt(data.status);
-    const now = new Date().getTime();
     switch (status) {
       case ObjectStatus.ON:
-        this.lastCommandTime = now;
         this.positionState = PositionState.INCREASING;
         break;
       case ObjectStatus.OFF: {
-        const position = this.positionFromTime();
-        this.lastCommandTime = 0;
-        this.log(
-          `Blind is now at position ${position} (it was ${
-            this.positionState === PositionState.DECREASING ? 'going down' : 'going up'
-          })`
-        );
-        this.positionState = PositionState.STOPPED;
-        this.coveringService.getCharacteristic(Characteristic.TargetPosition).updateValue(position);
+        this.coveringService
+          .getCharacteristic(Characteristic.TargetPosition)
+          .updateValue(this.positionState === PositionState.INCREASING ? Blind.OPEN : Blind.CLOSED);
         this.coveringService
           .getCharacteristic(Characteristic.CurrentPosition)
-          .updateValue(position);
-        this.coveringService
-          .getCharacteristic(Characteristic.PositionState)
-          .updateValue(PositionState.STOPPED);
+          .updateValue(this.positionState === PositionState.INCREASING ? Blind.OPEN : Blind.CLOSED);
+        this.positionState = PositionState.STOPPED;
         break;
       }
       case ObjectStatus.IDLE:
-        this.lastCommandTime = now;
         this.positionState = PositionState.DECREASING;
         break;
     }
-    this.log(
-      `Blind update: status ${status}, state ${this.positionState}, ts ${this.lastCommandTime}`
-    );
-  }
-
-  private positionFromTime() {
-    const now = new Date().getTime();
-    // Calculate the number of milliseconds the blind moved
-    const delta = now - this.lastCommandTime;
-    const currentPosition = this.coveringService.getCharacteristic(Characteristic.CurrentPosition)
-      .value as number;
-    // Calculate the percentage of movement
-    const deltaPercentage = Math.round(delta / (this.closingTime / 100));
-    this.log(
-      `Current position ${currentPosition}, delta is ${delta} (${deltaPercentage}%). State ${this.positionState}`
-    );
-    if (this.positionState === PositionState.DECREASING) {
-      // Blind is decreasing, subtract the delta
-      return currentPosition - deltaPercentage;
-    }
-    // Blind is increasing, add the delta
-    return currentPosition + deltaPercentage;
+    this.log(`Blind update: status ${status}, state ${this.positionState}`);
+    this.coveringService
+      .getCharacteristic(Characteristic.PositionState)
+      .updateValue(this.positionState);
   }
 }

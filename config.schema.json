@@ -6,12 +6,6 @@
   "schema": {
     "type": "object",
     "properties": {
-      "name": {
-        "title": "Installation name",
-        "type": "string",
-        "required": true,
-        "default": "My Home"
-      },
       "bridge_url": {
         "title": "Bridge URL",
         "type": "string",
@@ -20,31 +14,29 @@
       },
       "bridge_port": {
         "title": "Bridge PORT",
-        "type": "number",
+        "type": "integer",
         "required": false,
         "default": 80
       },
-      "blind_closing_time": {
-        "title": "Time spent by the blind to get fully closed from open position (default 35 seconds)",
-        "type": "number",
-        "required": false,
-        "default": 35
-      },
-      "alarm_code": {
-        "title": "Secret code for VEDO alarm (if present)",
-        "type": "string",
-        "required": false
-      },
-      "alarm_address": {
-        "title": "IP address for VEDO alarm (if present)",
-        "type": "string",
-        "required": false
-      },
-      "disable_alarm": {
-        "title": "Disable VEDO alarm accessory",
-        "type": "boolean",
-        "required": false,
-        "default": false
+      "advanced": {
+        "title": "Advanced configuration",
+        "type": "object",
+        "properties": {
+          "update_rate_sec": {
+            "title": "Interval for fetching home data from the bridge in seconds (default 5 seconds)",
+            "type": "integer",
+            "required": false,
+            "default": 5,
+            "minimum": 1,
+            "maximum": 30
+          },
+          "blind_closing_time": {
+            "title": "Time spent by the blind to get fully closed from open position (default 35 seconds)",
+            "type": "integer",
+            "required": false,
+            "default": 35
+          }
+        }
       }
     }
   }
