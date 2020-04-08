@@ -11,7 +11,6 @@ Currently supported devices:
 - Blinds
 - Thermostats
 - Controlled plugs
-- Vedo Alarm
 
 Missing devices:
 
@@ -28,34 +27,35 @@ Add the following section to the platform array in the Homebridge config.json fi
 ```json
 {
   "platform": "Comelit Serial Bridge",
-  "name": "My Home",
   "bridge_url": "192.168.1.2",
   "bridge_port": 80
 }
 ```
 
-## VEDO alarm support
+## Advanced configuration
 
-VEDO alarm is currently supported if enabled. This plugin will check with the HUB if you have it and then it will automatically
-map it as new accessory in HomeKit. Be aware to provide an alarm code in the config, otherwise the plugin won't be able
-to mount the accessory.
+The plugin configurationallows you to add some special parameter in the `advanced` section.
+
+- `update_rate_sec` - the timeout in seconds to pull for device status from the bridge. Default is to update every 5 seconds
+- `blind_closing_time` - Number of seconds a blind/shutter will use to go from completely open to completely closed. Default is 35 seconds.
+  This value is used to send the close/open command to the blind to stop it after a complete roll up/down.
 
 ```json
 {
   "platform": "Comelit Serial Bridge",
-  "name": "My Home",
   "bridge_url": "192.168.1.2",
   "bridge_port": 80,
-  "alarm_code": "12345678",
-  "alarm_address": "192.168.1.3"
+  "advanced": {
+    "update_rate_sec": 2,
+    "blind_closing_time": 40
+  }
 }
 ```
 
-You can temporary disable alarm by adding `disable_alarm: true` in your config.
-
 ## Version History
 
-1.0.0 - Initial version
+- 1.0.0 - Initial version
+- 1.1.0 - Removed Vedo support (moved to separate plugin)
 
 ## Screenshots
 
