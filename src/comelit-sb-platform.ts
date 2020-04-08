@@ -42,6 +42,10 @@ export class ComelitSbPlatform {
 
   private homeIndex: HomeIndex;
 
+  private updateRateSec: number;
+
+  private blindClosingTime: number;
+
   constructor(
     log: (message?: any, ...optionalParams: any[]) => void,
     config: HubConfig,
@@ -57,9 +61,10 @@ export class ComelitSbPlatform {
 
   async accessories(callback: (array: any[]) => void) {
     try {
-      if (this.config.bridge_url) {
+      if (this.config && this.config.bridge_url) {
         const advanced = this.config.advanced || EMPTY_ADVANCED_CONF;
-        advanced.update_rate_sec = advanced.update_rate_sec || DEFAULT_UPDATE_TIMEOUT_SEC;
+        this.updateRateSec = advanced.update_rate_sec || DEFAULT_UPDATE_TIMEOUT_SEC;
+        this.blindClosingTime = advanced.blind_closing_time;
         this.client = new ComelitSbClient(
           this.config.bridge_url,
           this.config.bridge_port,
@@ -145,7 +150,7 @@ export class ComelitSbPlatform {
               deviceData,
               deviceData.descrizione,
               this.client,
-              this.config.advanced.blind_closing_time
+              this.blindClosingTime
             )
           );
         }
@@ -212,8 +217,8 @@ export class ComelitSbPlatform {
       } catch (e) {
         this.log(e);
       }
-      this.keepAlive();
-    }, this.config.advanced.update_rate_sec * 1000);
+      this.keepAliveTimer.refresh();
+    }, this.updateRateSec * 1000);
   }
 
   private async shutdown() {
