@@ -13,6 +13,7 @@ export interface HubConfig {
   bridge_url: string;
   bridge_port?: number;
   advanced: {
+    stop_blinds: boolean;
     blind_closing_time?: number;
     update_rate_sec?: number;
   };
@@ -20,6 +21,7 @@ export interface HubConfig {
 
 const DEFAULT_UPDATE_TIMEOUT_SEC = 5;
 const EMPTY_ADVANCED_CONF = {
+  stop_blinds: false,
   update_rate_sec: null,
   blind_closing_time: null,
 };
@@ -64,7 +66,7 @@ export class ComelitSbPlatform {
       if (this.config && this.config.bridge_url) {
         const advanced = this.config.advanced || EMPTY_ADVANCED_CONF;
         this.updateRateSec = advanced.update_rate_sec || DEFAULT_UPDATE_TIMEOUT_SEC;
-        this.blindClosingTime = advanced.blind_closing_time;
+        this.blindClosingTime = advanced.blind_closing_time || null;
         this.client = new ComelitSbClient(
           this.config.bridge_url,
           this.config.bridge_port,
@@ -150,6 +152,7 @@ export class ComelitSbPlatform {
               deviceData,
               deviceData.descrizione,
               this.client,
+              this.config.advanced.stop_blinds,
               this.blindClosingTime
             )
           );

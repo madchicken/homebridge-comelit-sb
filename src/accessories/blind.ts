@@ -20,6 +20,7 @@ export class Blind extends ComelitAccessory<BlindDeviceData> {
   private coveringService: Service;
   private timeout: Timeout;
   private readonly closingTime: number;
+  private readonly sendStop: boolean;
   private positionState: number;
 
   constructor(
@@ -27,9 +28,11 @@ export class Blind extends ComelitAccessory<BlindDeviceData> {
     device: BlindDeviceData,
     name: string,
     client: ComelitSbClient,
+    sendStop: boolean,
     closingTime?: number
   ) {
     super(log, device, name, client, Categories.WINDOW_COVERING);
+    this.sendStop = sendStop;
     this.closingTime = (closingTime || Blind.OPENING_CLOSING_TIME) * 1000;
     this.log(`Blind ${device.id} has closing time of ${this.closingTime}`);
   }
@@ -63,7 +66,11 @@ export class Blind extends ComelitAccessory<BlindDeviceData> {
           const status = position < currentPosition ? ObjectStatus.OFF : ObjectStatus.ON;
           await this.client.toggleDeviceStatus(parseInt(this.device.objectId), status, 'shutter');
           this.timeout = setTimeout(async () => {
-            this.resetTimeout();
+            if (this.sendStop) {
+              this.resetTimeout();
+            } else {
+              this.timeout = null;
+            }
           }, this.closingTime);
           callback();
         } catch (e) {

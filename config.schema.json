@@ -30,10 +30,17 @@
             "minimum": 1,
             "maximum": 30
           },
+          "stop_blinds": {
+            "title": "Send stop signal to blinds after complete roll up/down",
+            "type": "boolean",
+            "default": false
+          },
           "blind_closing_time": {
             "title": "Time spent by the blind to get fully closed from open position (default 35 seconds)",
             "type": "integer",
             "required": false,
+            "minimum": 20,
+            "maximum": 200,
             "default": 35
           }
         }
