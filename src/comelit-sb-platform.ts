@@ -5,7 +5,7 @@ import { Thermostat } from './accessories/thermostat';
 import { Blind } from './accessories/blind';
 import { Outlet } from './accessories/outlet';
 import { PowerSupplier } from './accessories/power-supplier';
-import { Homebridge } from '../types';
+import { Homebridge, Logger } from '../types';
 
 import Timeout = NodeJS.Timeout;
 
@@ -16,6 +16,7 @@ export interface HubConfig {
     stop_blinds: boolean;
     blind_closing_time?: number;
     update_rate_sec?: number;
+    avoid_duplicates?: boolean;
   };
 }
 
@@ -32,7 +33,7 @@ export class ComelitSbPlatform {
     ComelitAccessory<DeviceData>
   >();
 
-  private readonly log: (message?: any, ...optionalParams: any[]) => void;
+  private readonly log: Logger;
 
   private readonly homebridge: Homebridge;
 
@@ -48,17 +49,14 @@ export class ComelitSbPlatform {
 
   private blindClosingTime: number;
 
-  constructor(
-    log: (message?: any, ...optionalParams: any[]) => void,
-    config: HubConfig,
-    homebridge: Homebridge
-  ) {
-    this.log = (str: string) => log(`[COMELIT SB] ${str}`);
+  constructor(log: Logger, config: HubConfig, homebridge: Homebridge) {
+    this.log = log;
     this.log('Initializing platform: ', config);
     this.config = config;
     // Save the API object as plugin needs to register new accessory via this object
     this.homebridge = homebridge;
     this.log(`homebridge API version: ${homebridge.version}`);
+    this.homebridge.on('didFinishLaunching', () => this.startPolling());
   }
 
   async accessories(callback: (array: any[]) => void) {
@@ -74,7 +72,7 @@ export class ComelitSbPlatform {
           this.log
         );
       } else {
-        this.log(`bridge_url config missing, skipping config`);
+        this.log.error(`Invalid config: bridge_url config is missing, can't map accessories`);
         callback([]);
         return;
       }
@@ -92,10 +90,15 @@ export class ComelitSbPlatform {
       this.mapSuppliers();
       this.log(`Found ${this.mappedAccessories.size} accessories`);
       callback([...this.mappedAccessories.values()]);
-      this.keepAlive(); // install keepalive (home index updater)
     } catch (e) {
       this.log(e);
       callback([]);
+    }
+  }
+
+  getDeviceName(deviceData: DeviceData): string {
+    if (this.config.advanced.avoid_duplicates) {
+      return `${deviceData.descrizione} (${deviceData.id})`;
     }
   }
 
@@ -109,7 +112,7 @@ export class ComelitSbPlatform {
           this.log(`Supplier ID: ${id}, ${deviceData.descrizione}`);
           this.mappedAccessories.set(
             id,
-            new PowerSupplier(this.log, deviceData, deviceData.descrizione, this.client)
+            new PowerSupplier(this.log, deviceData, this.getDeviceName(deviceData), this.client)
           );
         }
       });
@@ -128,7 +131,7 @@ export class ComelitSbPlatform {
           this.log(`Outlet ID: ${id}, ${deviceData.descrizione}`);
           this.mappedAccessories.set(
             id,
-            new Outlet(this.log, deviceData, deviceData.descrizione, this.client)
+            new Outlet(this.log, deviceData, this.getDeviceName(deviceData), this.client)
           );
         }
       });
@@ -173,7 +176,7 @@ export class ComelitSbPlatform {
           this.log(`Thermostat ID: ${id}, ${deviceData.descrizione}`);
           this.mappedAccessories.set(
             id,
-            new Thermostat(this.log, deviceData, deviceData.descrizione, this.client)
+            new Thermostat(this.log, deviceData, this.getDeviceName(deviceData), this.client)
           );
         }
       });
@@ -193,7 +196,7 @@ export class ComelitSbPlatform {
           this.log(`Light ID: ${id}, ${deviceData.descrizione}`);
           this.mappedAccessories.set(
             id,
-            new Lightbulb(this.log, deviceData, deviceData.descrizione, this.client)
+            new Lightbulb(this.log, deviceData, this.getDeviceName(deviceData), this.client)
           );
         }
       });
@@ -213,7 +216,7 @@ export class ComelitSbPlatform {
     }
   }
 
-  async keepAlive() {
+  async startPolling() {
     this.keepAliveTimer = setTimeout(async () => {
       try {
         await this.client.updateHomeStatus(this.homeIndex);

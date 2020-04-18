@@ -7,6 +7,12 @@
   "schema": {
     "type": "object",
     "properties": {
+      "name": {
+        "title": "Installation name",
+        "type": "string",
+        "required": true,
+        "default": "My Home"
+      },
       "bridge_url": {
         "title": "Bridge URL",
         "type": "string",
@@ -43,9 +49,34 @@
             "minimum": 20,
             "maximum": 200,
             "default": 35
+          },
+          "avoid_duplicates": {
+            "title": "Avoid mapping different devices with the same name",
+            "type": "boolean",
+            "default": false
           }
         }
       }
     }
-  }
+  },
+  "layout": [
+    {
+      "type": "fieldset",
+      "expandable": false,
+      "title": "Main settings",
+      "items": ["name", "bridge_url", "bridge_port"]
+    },
+    {
+      "type": "fieldset",
+      "expandable": true,
+      "expanded": false,
+      "title": "Advanced settings",
+      "items": [
+        "advanced.update_rate_sec",
+        "advanced.avoid_duplicates",
+        "advanced.stop_blinds",
+        "advanced.blind_closing_time"
+      ]
+    }
+  ]
 }
