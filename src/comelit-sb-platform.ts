@@ -1,4 +1,4 @@
-import { ComelitSbClient, DeviceData, HomeIndex } from 'comelit-client';
+import { ComelitSbClient, DeviceData, HomeIndex, OBJECT_SUBTYPE } from 'comelit-client';
 import { ComelitAccessory } from './accessories/comelit';
 import { Lightbulb } from './accessories/lightbulb';
 import { Thermostat } from './accessories/thermostat';
@@ -8,6 +8,7 @@ import { PowerSupplier } from './accessories/power-supplier';
 import { Homebridge, Logger } from '../types';
 
 import Timeout = NodeJS.Timeout;
+import { Dehumidifier } from './accessories/dehumidifier';
 
 export interface HubConfig {
   bridge_url: string;
@@ -97,9 +98,15 @@ export class ComelitSbPlatform {
   }
 
   getDeviceName(deviceData: DeviceData): string {
+    let key = deviceData.descrizione;
     if (this.config.advanced.avoid_duplicates) {
-      return `${deviceData.descrizione} (${deviceData.id})`;
+      let index = 0;
+      while (this.mappedAccessories.has(key)) {
+        index++;
+        key = `${deviceData.descrizione} (${index})`;
+      }
     }
+    return key;
   }
 
   private mapSuppliers() {
@@ -178,6 +185,12 @@ export class ComelitSbPlatform {
             id,
             new Thermostat(this.log, deviceData, this.getDeviceName(deviceData), this.client)
           );
+          if (deviceData.sub_type === OBJECT_SUBTYPE.CLIMA_THERMOSTAT_DEHUMIDIFIER) {
+            this.mappedAccessories.set(
+              `${id}#D`,
+              new Dehumidifier(this.log, deviceData, deviceData.descrizione, this.client)
+            );
+          }
         }
       });
     } catch (e) {

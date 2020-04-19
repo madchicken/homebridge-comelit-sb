@@ -11,10 +11,10 @@ Currently supported devices:
 - Blinds
 - Thermostats
 - Controlled plugs
+- Dehumidifiers (beta)
 
 Missing devices:
 
-- Dehumidifiers
 - RGB lights
 - Dimmerable lights
 - Irrigation
@@ -56,6 +56,7 @@ The plugin configurationallows you to add some special parameter in the `advance
 
 - 1.0.0 - Initial version
 - 1.1.0 - Removed Vedo support (moved to separate plugin)
+- 1.2.0 - Added dehumidifier support (beta)
 
 ## Screenshots
 
