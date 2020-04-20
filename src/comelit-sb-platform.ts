@@ -50,6 +50,8 @@ export class ComelitSbPlatform {
 
   private blindClosingTime: number;
 
+  private mappedNames: { [key: string]: boolean };
+
   constructor(log: Logger, config: HubConfig, homebridge: Homebridge) {
     this.log = log;
     this.log('Initializing platform: ', config);
@@ -62,6 +64,7 @@ export class ComelitSbPlatform {
 
   async accessories(callback: (array: any[]) => void) {
     try {
+      this.mappedNames = {};
       if (this.config && this.config.bridge_url) {
         const advanced = this.config.advanced || EMPTY_ADVANCED_CONF;
         this.updateRateSec = advanced.update_rate_sec || DEFAULT_UPDATE_TIMEOUT_SEC;
@@ -101,10 +104,11 @@ export class ComelitSbPlatform {
     let key = deviceData.descrizione;
     if (this.config.advanced.avoid_duplicates) {
       let index = 0;
-      while (this.mappedAccessories.has(key)) {
+      while (this.mappedNames[key] !== undefined) {
         index++;
         key = `${deviceData.descrizione} (${index})`;
       }
+      this.mappedNames[key] = true;
     }
     return key;
   }
