@@ -236,7 +236,9 @@ export class ComelitSbPlatform {
   async startPolling() {
     this.keepAliveTimer = setTimeout(async () => {
       try {
-        await this.client.updateHomeStatus(this.homeIndex);
+        if (this.client) {
+          await this.client.updateHomeStatus(this.homeIndex);
+        }
       } catch (e) {
         this.log(e);
       }
