@@ -26,6 +26,7 @@ const EMPTY_ADVANCED_CONF = {
   stop_blinds: false,
   update_rate_sec: null,
   blind_closing_time: null,
+  avoid_duplicates: false,
 };
 
 export class ComelitSbPlatform {
@@ -102,7 +103,8 @@ export class ComelitSbPlatform {
 
   getDeviceName(deviceData: DeviceData): string {
     let key = deviceData.descrizione;
-    if (this.config.advanced.avoid_duplicates) {
+    const advanced = this.config.advanced || EMPTY_ADVANCED_CONF;
+    if (advanced.avoid_duplicates) {
       let index = 0;
       while (this.mappedNames[key] !== undefined) {
         index++;
