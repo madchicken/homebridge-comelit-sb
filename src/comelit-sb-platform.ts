@@ -88,11 +88,13 @@ export class ComelitSbPlatform {
       }
       this.log('Building accessories list...');
       this.homeIndex = await this.client.fecthHomeIndex();
-      this.mapLights();
-      this.mapThermostats();
-      this.mapBlinds();
-      this.mapOutlets();
-      this.mapSuppliers();
+      if (this.homeIndex) {
+        this.mapLights();
+        this.mapThermostats();
+        this.mapBlinds();
+        this.mapOutlets();
+        this.mapSuppliers();
+      }
       this.log(`Found ${this.mappedAccessories.size} accessories`);
       callback([...this.mappedAccessories.values()]);
     } catch (e) {
@@ -239,7 +241,9 @@ export class ComelitSbPlatform {
     this.keepAliveTimer = setTimeout(async () => {
       try {
         if (this.client) {
-          await this.client.updateHomeStatus(this.homeIndex);
+          if (this.homeIndex) {
+            await this.client.updateHomeStatus(this.homeIndex);
+          }
         }
       } catch (e) {
         this.log(e);
