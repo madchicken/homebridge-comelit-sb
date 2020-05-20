@@ -43,6 +43,12 @@ const EMPTY_ADVANCED_CONF = {
   update_rate_sec: null,
   blind_closing_time: null,
   avoid_duplicates: false,
+  hide_lights: false,
+  hide_blinds: false,
+  hide_thermostats: false,
+  hide_dehumidifiers: false,
+  hide_power_suppliers: false,
+  hide_outlets: false,
 };
 
 export class ComelitSbPlatform implements DynamicPlatformPlugin {
@@ -100,36 +106,36 @@ export class ComelitSbPlatform implements DynamicPlatformPlugin {
           this.updateAccessory.bind(this),
           this.log
         );
+        const login = await this.client.login();
+        if (login === false) {
+          this.log.info('Not logged, returning empty accessory array');
+          this.mappedAccessories = new Map<string, ComelitAccessory<DeviceData>>();
+        }
+        this.log.info('Building accessories list...');
+        const homeIndex = await this.client.fecthHomeIndex();
+        if (homeIndex) {
+          if (advanced.hide_lights !== true) {
+            this.mapLights(homeIndex);
+          }
+          if (advanced.hide_thermostats !== true) {
+            this.mapThermostats(homeIndex);
+          }
+          if (advanced.hide_blinds !== true) {
+            this.mapBlinds(homeIndex);
+          }
+          if (advanced.hide_outlets !== true) {
+            this.mapOutlets(homeIndex);
+          }
+          if (advanced.hide_power_suppliers !== true) {
+            this.mapSuppliers(homeIndex);
+          }
+        }
+        this.log.info(`Found ${this.mappedAccessories.size} accessories`);
+        this.startPolling(homeIndex);
       } else {
         this.log.error(`Invalid config: bridge_url config is missing, can't map accessories`);
         return;
       }
-      const login = await this.client.login();
-      if (login === false) {
-        this.log.info('Not logged, returning empty accessory array');
-        this.mappedAccessories = new Map<string, ComelitAccessory<DeviceData>>();
-      }
-      this.log.info('Building accessories list...');
-      const homeIndex = await this.client.fecthHomeIndex();
-      if (homeIndex) {
-        if (this.config.hide_lights !== true) {
-          this.mapLights(homeIndex);
-        }
-        if (this.config.hide_thermostats !== true) {
-          this.mapThermostats(homeIndex);
-        }
-        if (this.config.hide_blinds !== true) {
-          this.mapBlinds(homeIndex);
-        }
-        if (this.config.hide_outlets !== true) {
-          this.mapOutlets(homeIndex);
-        }
-        if (this.config.hide_power_suppliers !== true) {
-          this.mapSuppliers(homeIndex);
-        }
-      }
-      this.log.info(`Found ${this.mappedAccessories.size} accessories`);
-      this.startPolling(homeIndex);
     } catch (e) {
       this.log.info(e);
     }
