@@ -1,14 +1,10 @@
 import { ComelitAccessory } from './comelit';
 import { BlindDeviceData, ComelitSbClient, ObjectStatus } from 'comelit-client';
-import {
-  Callback,
-  Categories,
-  Characteristic,
-  CharacteristicEventTypes,
-  Service,
-} from 'hap-nodejs';
+import { Callback, Characteristic, CharacteristicEventTypes, Service } from 'hap-nodejs';
 import { HomebridgeAPI } from '../index';
 import { PositionState } from 'hap-nodejs/dist/lib/gen/HomeKit';
+import { ComelitSbPlatform } from '../comelit-sb-platform';
+import { PlatformAccessory } from 'homebridge';
 import Timeout = NodeJS.Timeout;
 
 export class Blind extends ComelitAccessory<BlindDeviceData> {
@@ -24,17 +20,16 @@ export class Blind extends ComelitAccessory<BlindDeviceData> {
   private positionState: number;
 
   constructor(
-    log: Function,
-    device: BlindDeviceData,
-    name: string,
+    platform: ComelitSbPlatform,
+    accessory: PlatformAccessory,
     client: ComelitSbClient,
     sendStop: boolean,
     closingTime?: number
   ) {
-    super(log, device, name, client, Categories.WINDOW_COVERING);
+    super(platform, accessory, client);
     this.sendStop = sendStop;
     this.closingTime = (closingTime || Blind.OPENING_CLOSING_TIME) * 1000;
-    this.log(`Blind ${device.id} has closing time of ${this.closingTime}`);
+    this.log.info(`Blind ${this.device.id} has closing time of ${this.closingTime}`);
   }
 
   protected initServices(): Service[] {
@@ -84,7 +79,7 @@ export class Blind extends ComelitAccessory<BlindDeviceData> {
   private async resetTimeout() {
     // A timeout was set, this means that we are already opening or closing the blind
     // Stop the blind and calculate a rough position
-    this.log(`Stopping blind`);
+    this.log.info(`Stopping blind`);
     clearTimeout(this.timeout);
     this.timeout = null;
     await this.client.toggleDeviceStatus(
@@ -114,7 +109,7 @@ export class Blind extends ComelitAccessory<BlindDeviceData> {
         this.positionState = PositionState.DECREASING;
         break;
     }
-    this.log(`Blind update: status ${status}, state ${this.positionState}`);
+    this.log.info(`Blind update: status ${status}, state ${this.positionState}`);
     this.coveringService
       .getCharacteristic(Characteristic.PositionState)
       .updateValue(this.positionState);

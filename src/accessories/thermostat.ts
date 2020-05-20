@@ -6,24 +6,20 @@ import {
   ThermoSeason,
   ThermostatDeviceData,
 } from 'comelit-client';
-import {
-  Categories,
-  Characteristic,
-  CharacteristicEventTypes,
-  Service,
-  VoidCallback,
-} from 'hap-nodejs';
+import { Characteristic, CharacteristicEventTypes, Service, VoidCallback } from 'hap-nodejs';
 import { HomebridgeAPI } from '../index';
 import {
   TargetHeatingCoolingState,
   TemperatureDisplayUnits,
 } from 'hap-nodejs/dist/lib/gen/HomeKit';
+import { ComelitSbPlatform } from '../comelit-sb-platform';
+import { PlatformAccessory } from 'homebridge';
 
 export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
   private thermostatService: Service;
 
-  constructor(log: Function, device: ThermostatDeviceData, name: string, client: ComelitSbClient) {
-    super(log, device, name, client, Categories.THERMOSTAT);
+  constructor(platform: ComelitSbPlatform, accessory: PlatformAccessory, client: ComelitSbClient) {
+    super(platform, accessory, client);
   }
 
   protected initServices(): Service[] {
@@ -61,7 +57,7 @@ export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
         ).value;
         try {
           if (currentState !== state) {
-            this.log(`Modifying state of ${this.name} to ${state}`);
+            this.log.info(`Modifying state of ${this.accessory.displayName} to ${state}`);
             if (currentState === TargetHeatingCoolingState.OFF) {
               // before doing anything, we need to turn on the thermostat
               await this.client.toggleThermostatStatus(
@@ -147,14 +143,14 @@ export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
       `Current cooling state is now ${currentCoolingState}, target state is ${targetState}`
     );
     const temperature = data.temperatura ? parseFloat(data.temperatura) / 10 : 0;
-    this.log(`Temperature for ${this.name} is ${temperature}`);
+    this.log.info(`Temperature for ${this.accessory.displayName} is ${temperature}`);
     this.thermostatService
       .getCharacteristic(Characteristic.CurrentTemperature)
       .updateValue(temperature);
 
     const activeThreshold = data.soglia_attiva;
     const targetTemperature = activeThreshold ? parseFloat(activeThreshold) / 10 : 0;
-    this.log(`Threshold for ${this.name} is ${targetTemperature}`);
+    this.log.info(`Threshold for ${this.accessory.displayName} is ${targetTemperature}`);
     this.thermostatService
       .getCharacteristic(Characteristic.TargetTemperature)
       .updateValue(targetTemperature);

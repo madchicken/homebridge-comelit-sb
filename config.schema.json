@@ -11,7 +11,7 @@
         "title": "Installation name",
         "type": "string",
         "required": true,
-        "default": "My Home"
+        "default": "Comelit SB"
       },
       "bridge_url": {
         "title": "Bridge URL",

@@ -1,25 +1,20 @@
 import { ComelitAccessory } from './comelit';
 import { ClimaMode, ClimaOnOff, ComelitSbClient, ThermostatDeviceData } from 'comelit-client';
-import {
-  Categories,
-  Characteristic,
-  CharacteristicEventTypes,
-  Service,
-  VoidCallback,
-} from 'hap-nodejs';
+import { Characteristic, CharacteristicEventTypes, Service, VoidCallback } from 'hap-nodejs';
 import { HomebridgeAPI } from '../index';
 import {
   Active,
   CurrentHumidifierDehumidifierState,
   TargetHumidifierDehumidifierState,
 } from 'hap-nodejs/dist/lib/gen/HomeKit';
+import { ComelitSbPlatform } from '../comelit-sb-platform';
+import { PlatformAccessory } from 'homebridge';
 
 export class Dehumidifier extends ComelitAccessory<ThermostatDeviceData> {
   private dehumidifierService: Service;
 
-  constructor(log: Function, device: ThermostatDeviceData, name: string, client: ComelitSbClient) {
-    super(log, device, name, client, Categories.AIR_CONDITIONER);
-    this.uuid_base = `${device.objectId}#D`;
+  constructor(platform: ComelitSbPlatform, accessory: PlatformAccessory, client: ComelitSbClient) {
+    super(platform, accessory, client);
   }
 
   protected initServices(): Service[] {
@@ -41,8 +36,8 @@ export class Dehumidifier extends ComelitAccessory<ThermostatDeviceData> {
       .getCharacteristic(Characteristic.RelativeHumidityDehumidifierThreshold)
       .on(CharacteristicEventTypes.SET, async (humidity: number, callback: VoidCallback) => {
         try {
-          this.log(
-            `Modifying target humidity threshold of ${this.name}-dehumidifier to ${humidity}%`
+          this.log.info(
+            `Modifying target humidity threshold of ${this.accessory.displayName}-dehumidifier to ${humidity}%`
           );
           await this.client.setHumidity(parseInt(this.device.id), humidity);
           this.device.soglia_attiva_umi = `${humidity}`;
@@ -56,7 +51,9 @@ export class Dehumidifier extends ComelitAccessory<ThermostatDeviceData> {
       .getCharacteristic(Characteristic.TargetHumidifierDehumidifierState)
       .on(CharacteristicEventTypes.SET, async (state: number, callback: VoidCallback) => {
         try {
-          this.log(`Modifying target state of ${this.name}-dehumidifier to ${state}`);
+          this.log.info(
+            `Modifying target state of ${this.accessory.displayName}-dehumidifier to ${state}`
+          );
           switch (state) {
             case TargetHumidifierDehumidifierState.DEHUMIDIFIER:
             case TargetHumidifierDehumidifierState.HUMIDIFIER:
@@ -76,7 +73,9 @@ export class Dehumidifier extends ComelitAccessory<ThermostatDeviceData> {
       .getCharacteristic(Characteristic.Active)
       .on(CharacteristicEventTypes.SET, async (state: number, callback: VoidCallback) => {
         try {
-          this.log(`Modifying active state of ${this.name}-dehumidifier to ${state}`);
+          this.log.info(
+            `Modifying active state of ${this.accessory.displayName}-dehumidifier to ${state}`
+          );
           switch (state) {
             case Active.ACTIVE:
               await this.client.switchHumidifierMode(parseInt(this.device.id), ClimaMode.MANUAL);
@@ -100,7 +99,9 @@ export class Dehumidifier extends ComelitAccessory<ThermostatDeviceData> {
     const isOff: boolean =
       data.auto_man_umi === ClimaMode.OFF_AUTO || data.auto_man_umi === ClimaMode.OFF_MANUAL;
     const isAuto: boolean = data.auto_man_umi === ClimaMode.AUTO;
-    this.log(`Dehumidifier ${this.name} auto mode is ${isAuto}, off ${isOff}`);
+    this.log.info(
+      `Dehumidifier ${this.accessory.displayName} auto mode is ${isAuto}, off ${isOff}`
+    );
 
     const isDehumidifierOff =
       data.auto_man_umi === ClimaMode.OFF_MANUAL ||

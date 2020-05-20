@@ -1,27 +1,27 @@
 import { ComelitAccessory } from './comelit';
-import { ComelitSbClient, DeviceData, LightDeviceData, ObjectStatus } from 'comelit-client';
-import { Categories, Characteristic, CharacteristicEventTypes, Service } from 'hap-nodejs';
+import { ComelitSbClient, LightDeviceData, ObjectStatus } from 'comelit-client';
+import { Characteristic, CharacteristicEventTypes, Service } from 'hap-nodejs';
 import { HomebridgeAPI } from '../index';
+import { ComelitSbPlatform } from '../comelit-sb-platform';
+import { PlatformAccessory } from 'homebridge';
 
 export class Lightbulb extends ComelitAccessory<LightDeviceData> {
   private lightbulbService: Service;
 
-  constructor(log: Function, device: DeviceData, name: string, client: ComelitSbClient) {
-    super(log, device, name, client, Categories.LIGHTBULB);
+  constructor(platform: ComelitSbPlatform, accessory: PlatformAccessory, client: ComelitSbClient) {
+    super(platform, accessory, client);
   }
 
-  async identify(callback: Function) {
+  async identify() {
     if (this.isOn()) {
       this.lightbulbService.setCharacteristic(Characteristic.On, false);
       setTimeout(() => {
         this.lightbulbService.setCharacteristic(Characteristic.On, true);
-        callback();
       }, 1000);
     } else {
       this.lightbulbService.setCharacteristic(Characteristic.On, true);
       setTimeout(() => {
         this.lightbulbService.setCharacteristic(Characteristic.On, false);
-        callback();
       }, 1000);
     }
   }
@@ -34,7 +34,10 @@ export class Lightbulb extends ComelitAccessory<LightDeviceData> {
     const accessoryInformation = this.initAccessoryInformation(); // common info about the accessory
 
     const status = parseInt(this.device.status);
-    this.lightbulbService = new HomebridgeAPI.hap.Service.Lightbulb(this.name, null);
+    this.lightbulbService = new HomebridgeAPI.hap.Service.Lightbulb(
+      this.accessory.displayName,
+      null
+    );
 
     this.lightbulbService.addCharacteristic(Characteristic.StatusActive);
 

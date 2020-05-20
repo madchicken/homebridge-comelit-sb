@@ -1,14 +1,9 @@
 import { ComelitAccessory } from './comelit';
 import { ComelitSbClient, OutletDeviceData } from 'comelit-client';
-import {
-  Categories,
-  Characteristic,
-  CharacteristicEventTypes,
-  Formats,
-  Perms,
-  Service,
-} from 'hap-nodejs';
+import { Characteristic, CharacteristicEventTypes, Formats, Perms, Service } from 'hap-nodejs';
 import { HomebridgeAPI } from '../index';
+import { ComelitSbPlatform } from '../comelit-sb-platform';
+import { PlatformAccessory } from 'homebridge';
 
 class Consumption extends Characteristic {
   static readonly UUID: string = '00000029-0000-2000-8000-0026BB765291';
@@ -29,8 +24,8 @@ export class Outlet extends ComelitAccessory<OutletDeviceData> {
 
   private outletService: Service;
 
-  constructor(log: Function, device: OutletDeviceData, name: string, client: ComelitSbClient) {
-    super(log, device, name, client, Categories.OUTLET);
+  constructor(platform: ComelitSbPlatform, accessory: PlatformAccessory, client: ComelitSbClient) {
+    super(platform, accessory, client);
   }
 
   protected initServices(): Service[] {

@@ -5,12 +5,22 @@ import { Thermostat } from './accessories/thermostat';
 import { Blind } from './accessories/blind';
 import { Outlet } from './accessories/outlet';
 import { PowerSupplier } from './accessories/power-supplier';
-import { Homebridge, Logger } from '../types';
 
 import Timeout = NodeJS.Timeout;
 import { Dehumidifier } from './accessories/dehumidifier';
+import {
+  API,
+  APIEvent,
+  DynamicPlatformPlugin,
+  Logger,
+  PlatformAccessory,
+  PlatformConfig,
+  Service,
+  Characteristic,
+  Categories,
+} from 'homebridge';
 
-export interface HubConfig {
+export interface HubConfig extends PlatformConfig {
   bridge_url: string;
   bridge_port?: number;
   advanced: {
@@ -18,6 +28,12 @@ export interface HubConfig {
     blind_closing_time?: number;
     update_rate_sec?: number;
     avoid_duplicates?: boolean;
+    hide_lights?: boolean;
+    hide_blinds?: boolean;
+    hide_thermostats?: boolean;
+    hide_dehumidifiers?: boolean;
+    hide_power_suppliers?: boolean;
+    hide_outlets?: boolean;
   };
 }
 
@@ -29,15 +45,19 @@ const EMPTY_ADVANCED_CONF = {
   avoid_duplicates: false,
 };
 
-export class ComelitSbPlatform {
+export class ComelitSbPlatform implements DynamicPlatformPlugin {
+  public readonly Service: typeof Service;
+  public readonly Characteristic: typeof Characteristic;
+  public readonly PlatformAccessory: typeof PlatformAccessory;
+
   public mappedAccessories: Map<string, ComelitAccessory<DeviceData>> = new Map<
     string,
     ComelitAccessory<DeviceData>
   >();
 
-  private readonly log: Logger;
+  readonly log: Logger;
 
-  private readonly homebridge: Homebridge;
+  private readonly api: API;
 
   private client: ComelitSbClient;
 
@@ -45,28 +65,32 @@ export class ComelitSbPlatform {
 
   private keepAliveTimer: Timeout;
 
-  private homeIndex: HomeIndex;
-
   private updateRateSec: number;
 
   private blindClosingTime: number;
 
   private mappedNames: { [key: string]: boolean };
 
-  constructor(log: Logger, config: HubConfig, homebridge: Homebridge) {
+  public readonly accessories: PlatformAccessory[] = [];
+
+  constructor(log: Logger, config: HubConfig, api: API) {
     this.log = log;
-    this.log('Initializing platform: ', config);
+    this.log.info('Initializing platform: ', config);
     this.config = config;
     // Save the API object as plugin needs to register new accessory via this object
-    this.homebridge = homebridge;
-    this.log(`homebridge API version: ${homebridge.version}`);
-    this.homebridge.on('didFinishLaunching', () => this.startPolling());
+    this.api = api;
+    this.log.info(`homebridge API version: ${api.version}`);
+    this.Service = this.api.hap.Service;
+    this.Characteristic = this.api.hap.Characteristic;
+    this.PlatformAccessory = this.api.platformAccessory;
+    this.api.on(APIEvent.DID_FINISH_LAUNCHING, () => this.discoverDevices());
+    this.api.on(APIEvent.SHUTDOWN, () => this.shutdown());
   }
 
-  async accessories(callback: (array: any[]) => void) {
+  async discoverDevices() {
     try {
-      this.mappedNames = {};
-      if (this.config && this.config.bridge_url) {
+      if (this.hasValidConfig()) {
+        this.mappedNames = {};
         const advanced = this.config.advanced || EMPTY_ADVANCED_CONF;
         this.updateRateSec = advanced.update_rate_sec || DEFAULT_UPDATE_TIMEOUT_SEC;
         this.blindClosingTime = advanced.blind_closing_time || null;
@@ -78,29 +102,48 @@ export class ComelitSbPlatform {
         );
       } else {
         this.log.error(`Invalid config: bridge_url config is missing, can't map accessories`);
-        callback([]);
         return;
       }
       const login = await this.client.login();
       if (login === false) {
-        this.log('Not logged, returning empty accessory array');
+        this.log.info('Not logged, returning empty accessory array');
         this.mappedAccessories = new Map<string, ComelitAccessory<DeviceData>>();
       }
-      this.log('Building accessories list...');
-      this.homeIndex = await this.client.fecthHomeIndex();
-      if (this.homeIndex) {
-        this.mapLights();
-        this.mapThermostats();
-        this.mapBlinds();
-        this.mapOutlets();
-        this.mapSuppliers();
+      this.log.info('Building accessories list...');
+      const homeIndex = await this.client.fecthHomeIndex();
+      if (homeIndex) {
+        if (this.config.hide_lights !== true) {
+          this.mapLights(homeIndex);
+        }
+        if (this.config.hide_thermostats !== true) {
+          this.mapThermostats(homeIndex);
+        }
+        if (this.config.hide_blinds !== true) {
+          this.mapBlinds(homeIndex);
+        }
+        if (this.config.hide_outlets !== true) {
+          this.mapOutlets(homeIndex);
+        }
+        if (this.config.hide_power_suppliers !== true) {
+          this.mapSuppliers(homeIndex);
+        }
       }
-      this.log(`Found ${this.mappedAccessories.size} accessories`);
-      callback([...this.mappedAccessories.values()]);
+      this.log.info(`Found ${this.mappedAccessories.size} accessories`);
+      this.startPolling(homeIndex);
     } catch (e) {
-      this.log(e);
-      callback([]);
+      this.log.info(e);
     }
+  }
+
+  configureAccessory(accessory: PlatformAccessory): void {
+    this.log.info('Loading accessory from cache:', accessory.displayName);
+
+    // add the restored accessory to the accessories cache so we can track if it has already been registered
+    this.accessories.push(accessory);
+  }
+
+  private hasValidConfig() {
+    return this.config && this.config.bridge_url;
   }
 
   getDeviceName(deviceData: DeviceData): string {
@@ -117,58 +160,54 @@ export class ComelitSbPlatform {
     return key;
   }
 
-  private mapSuppliers() {
-    const supplierIds = [...this.homeIndex.supplierIndex.keys()];
-    this.log(`Found ${supplierIds.length} suppliers`);
+  private mapSuppliers(homeIndex: HomeIndex) {
+    const supplierIds = [...homeIndex.supplierIndex.keys()];
+    this.log.info(`Found ${supplierIds.length} suppliers`);
     try {
       supplierIds.forEach(id => {
-        const deviceData = this.homeIndex.supplierIndex.get(id);
+        const deviceData = homeIndex.supplierIndex.get(id);
         if (deviceData) {
-          this.log(`Supplier ID: ${id}, ${deviceData.descrizione}`);
-          this.mappedAccessories.set(
-            id,
-            new PowerSupplier(this.log, deviceData, this.getDeviceName(deviceData), this.client)
-          );
+          this.log.info(`Supplier ID: ${id}, ${deviceData.descrizione}`);
+          const accessory = this.createHapAccessory(deviceData, Categories.OTHER);
+          this.mappedAccessories.set(id, new PowerSupplier(this, accessory, this.client));
         }
       });
     } catch (e) {
-      this.log(e);
+      this.log.info(e);
     }
   }
 
-  private mapOutlets() {
-    const outletIds = [...this.homeIndex.outletsIndex.keys()];
-    this.log(`Found ${outletIds.length} outlets`);
+  private mapOutlets(homeIndex: HomeIndex) {
+    const outletIds = [...homeIndex.outletsIndex.keys()];
+    this.log.info(`Found ${outletIds.length} outlets`);
     try {
       outletIds.forEach(id => {
-        const deviceData = this.homeIndex.outletsIndex.get(id);
+        const deviceData = homeIndex.outletsIndex.get(id);
         if (deviceData) {
-          this.log(`Outlet ID: ${id}, ${deviceData.descrizione}`);
-          this.mappedAccessories.set(
-            id,
-            new Outlet(this.log, deviceData, this.getDeviceName(deviceData), this.client)
-          );
+          this.log.info(`Outlet ID: ${id}, ${deviceData.descrizione}`);
+          const accessory = this.createHapAccessory(deviceData, Categories.OUTLET);
+          this.mappedAccessories.set(id, new Outlet(this, accessory, this.client));
         }
       });
     } catch (e) {
-      this.log(e);
+      this.log.info(e);
     }
   }
 
-  private mapBlinds() {
-    const shadeIds = [...this.homeIndex.blindsIndex.keys()];
-    this.log(`Found ${shadeIds.length} shades`);
+  private mapBlinds(homeIndex: HomeIndex) {
+    const shadeIds = [...homeIndex.blindsIndex.keys()];
+    this.log.info(`Found ${shadeIds.length} shades`);
     try {
       shadeIds.forEach(id => {
-        const deviceData = this.homeIndex.blindsIndex.get(id);
+        const deviceData = homeIndex.blindsIndex.get(id);
         if (deviceData) {
-          this.log(`Blind ID: ${id}, ${deviceData.descrizione}`);
+          this.log.info(`Blind ID: ${id}, ${deviceData.descrizione}`);
+          const accessory = this.createHapAccessory(deviceData, Categories.WINDOW_COVERING);
           this.mappedAccessories.set(
             id,
             new Blind(
-              this.log,
-              deviceData,
-              deviceData.descrizione,
+              this,
+              accessory,
               this.client,
               this.config.advanced.stop_blinds,
               this.blindClosingTime
@@ -177,53 +216,71 @@ export class ComelitSbPlatform {
         }
       });
     } catch (e) {
-      this.log(e);
+      this.log.info(e);
     }
   }
 
-  private mapThermostats() {
-    const thermostatIds = [...this.homeIndex.thermostatsIndex.keys()];
-    this.log(`Found ${thermostatIds.length} thermostats`);
+  private mapThermostats(homeIndex: HomeIndex) {
+    const thermostatIds = [...homeIndex.thermostatsIndex.keys()];
+    this.log.info(`Found ${thermostatIds.length} thermostats`);
     try {
       thermostatIds.forEach(id => {
-        const deviceData = this.homeIndex.thermostatsIndex.get(id);
+        const deviceData = homeIndex.thermostatsIndex.get(id);
         if (deviceData) {
-          this.log(`Thermostat ID: ${id}, ${deviceData.descrizione}`);
-          this.mappedAccessories.set(
-            id,
-            new Thermostat(this.log, deviceData, this.getDeviceName(deviceData), this.client)
-          );
+          this.log.info(`Thermostat ID: ${id}, ${deviceData.descrizione}`);
+          const accessory = this.createHapAccessory(deviceData, Categories.THERMOSTAT);
+          this.mappedAccessories.set(id, new Thermostat(this, accessory, this.client));
           if (deviceData.sub_type === OBJECT_SUBTYPE.CLIMA_THERMOSTAT_DEHUMIDIFIER) {
-            this.mappedAccessories.set(
-              `${id}#D`,
-              new Dehumidifier(this.log, deviceData, deviceData.descrizione, this.client)
+            const accessory = this.createHapAccessory(
+              deviceData,
+              Categories.AIR_DEHUMIDIFIER,
+              `${id}#D`
             );
+            this.mappedAccessories.set(`${id}#D`, new Dehumidifier(this, accessory, this.client));
           }
         }
       });
     } catch (e) {
-      this.log(e);
+      this.log.info(e);
     }
   }
 
-  private mapLights() {
-    const lightIds = [...this.homeIndex.lightsIndex.keys()];
-    this.log(`Found ${lightIds.length} lights`);
+  private mapLights(homeIndex: HomeIndex) {
+    const lightIds = [...homeIndex.lightsIndex.keys()];
+    this.log.info(`Found ${lightIds.length} lights`);
 
     try {
       lightIds.forEach(id => {
-        const deviceData = this.homeIndex.lightsIndex.get(id);
+        const deviceData = homeIndex.lightsIndex.get(id);
         if (deviceData) {
-          this.log(`Light ID: ${id}, ${deviceData.descrizione}`);
-          this.mappedAccessories.set(
-            id,
-            new Lightbulb(this.log, deviceData, this.getDeviceName(deviceData), this.client)
-          );
+          this.log.info(`Light ID: ${id}, ${deviceData.descrizione}`);
+          const accessory = this.createHapAccessory(deviceData, Categories.LIGHTBULB);
+          this.mappedAccessories.set(id, new Lightbulb(this, accessory, this.client));
         }
       });
     } catch (e) {
-      this.log(e);
+      this.log.info(e);
     }
+  }
+
+  private createHapAccessory(deviceData: DeviceData, category: Categories, id?: string) {
+    const uuid = this.api.hap.uuid.generate(id || deviceData.id);
+    const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
+    const accessory =
+      existingAccessory ||
+      new this.PlatformAccessory(this.getDeviceName(deviceData), uuid, category);
+    accessory.context = deviceData;
+    if (existingAccessory) {
+      this.log.debug(`Reuse accessory from cache with uuid ${uuid} of type ${category}`);
+    } else {
+      this.log.debug(`Registering new accessory with uuid ${uuid} of type ${category}`);
+      this.api.registerPlatformAccessories(
+        'homebridge-comelit-sb-platform',
+        'Comelit Serial Bridge',
+        [accessory]
+      );
+    }
+    return accessory;
   }
 
   updateAccessory(id: string, data: DeviceData) {
@@ -233,20 +290,20 @@ export class ComelitSbPlatform {
         accessory.update(data);
       }
     } catch (e) {
-      this.log(e);
+      this.log.info(e);
     }
   }
 
-  async startPolling() {
+  async startPolling(homeIndex: HomeIndex) {
     this.keepAliveTimer = setTimeout(async () => {
       try {
         if (this.client) {
-          if (this.homeIndex) {
-            await this.client.updateHomeStatus(this.homeIndex);
+          if (homeIndex) {
+            await this.client.updateHomeStatus(homeIndex);
           }
         }
       } catch (e) {
-        this.log(e);
+        this.log.info(e);
       }
       this.keepAliveTimer.refresh();
     }, this.updateRateSec * 1000);
@@ -254,7 +311,7 @@ export class ComelitSbPlatform {
 
   private async shutdown() {
     if (this.client) {
-      this.log('Shutting down old client...');
+      this.log.info('Shutting down SB client...');
       if (this.keepAliveTimer) {
         clearTimeout(this.keepAliveTimer);
         this.keepAliveTimer = null;
