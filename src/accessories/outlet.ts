@@ -1,21 +1,7 @@
 import { ComelitAccessory } from './comelit';
 import { ComelitSbClient, OutletDeviceData } from 'comelit-client';
 import { ComelitSbPlatform } from '../comelit-sb-platform';
-import { CharacteristicEventTypes, Formats, Perms, PlatformAccessory, Service } from 'homebridge';
-import { HomebridgeAPI } from '../index';
-
-class Consumption extends HomebridgeAPI.hap.Characteristic {
-  static readonly UUID: string = '00000029-0000-2000-8000-0026BB765291';
-
-  constructor() {
-    super('Power consumption', Consumption.UUID);
-    this.setProps({
-      format: Formats.STRING,
-      perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
-    });
-    this.value = this.getDefaultValue();
-  }
-}
+import { CharacteristicEventTypes, PlatformAccessory, Service } from 'homebridge';
 
 export class Outlet extends ComelitAccessory<OutletDeviceData> {
   static readonly ON = 1;
@@ -34,7 +20,6 @@ export class Outlet extends ComelitAccessory<OutletDeviceData> {
       this.accessory.getService(this.platform.Service.Outlet) ||
       this.accessory.addService(this.platform.Service.Outlet);
 
-    this.outletService.addOptionalCharacteristic(Consumption);
     this.update(this.device);
     this.outletService
       .getCharacteristic(this.platform.Characteristic.InUse)
@@ -54,11 +39,6 @@ export class Outlet extends ComelitAccessory<OutletDeviceData> {
           callback(e);
         }
       });
-    this.outletService
-      .getCharacteristic(Consumption)
-      .on(CharacteristicEventTypes.GET, async (callback: Function) => {
-        callback(null, `${this.device.instant_power} W`);
-      });
 
     return [accessoryInformation, this.outletService];
   }
@@ -68,6 +48,5 @@ export class Outlet extends ComelitAccessory<OutletDeviceData> {
     this.outletService.getCharacteristic(this.platform.Characteristic.On).updateValue(status > 0);
     const power = parseFloat(data.instant_power);
     this.outletService.getCharacteristic(this.platform.Characteristic.InUse).updateValue(power > 0);
-    this.outletService.getCharacteristic(Consumption).updateValue(`${data.instant_power} W`);
   }
 }
