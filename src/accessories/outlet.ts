@@ -1,18 +1,17 @@
 import { ComelitAccessory } from './comelit';
 import { ComelitSbClient, OutletDeviceData } from 'comelit-client';
-import { Characteristic, CharacteristicEventTypes, Formats, Perms, Service } from 'hap-nodejs';
-import { HomebridgeAPI } from '../index';
 import { ComelitSbPlatform } from '../comelit-sb-platform';
-import { PlatformAccessory } from 'homebridge';
+import { CharacteristicEventTypes, Formats, Perms, PlatformAccessory, Service } from 'homebridge';
+import { HomebridgeAPI } from '../index';
 
-class Consumption extends Characteristic {
+class Consumption extends HomebridgeAPI.hap.Characteristic {
   static readonly UUID: string = '00000029-0000-2000-8000-0026BB765291';
 
   constructor() {
     super('Power consumption', Consumption.UUID);
     this.setProps({
       format: Formats.STRING,
-      perms: [Perms.READ, Perms.WRITE, Perms.NOTIFY],
+      perms: [Perms.PAIRED_READ, Perms.PAIRED_WRITE, Perms.NOTIFY],
     });
     this.value = this.getDefaultValue();
   }
@@ -31,17 +30,20 @@ export class Outlet extends ComelitAccessory<OutletDeviceData> {
   protected initServices(): Service[] {
     const accessoryInformation = this.initAccessoryInformation();
 
-    this.outletService = new HomebridgeAPI.hap.Service.Outlet(this.device.descrizione, null);
+    this.outletService =
+      this.accessory.getService(this.platform.Service.Outlet) ||
+      this.accessory.addService(this.platform.Service.Outlet);
+
     this.outletService.addOptionalCharacteristic(Consumption);
     this.update(this.device);
     this.outletService
-      .getCharacteristic(Characteristic.InUse)
+      .getCharacteristic(this.platform.Characteristic.InUse)
       .on(CharacteristicEventTypes.GET, async (callback: Function) => {
         const power = parseFloat(this.device.instant_power);
         callback(null, power > 0);
       });
     this.outletService
-      .getCharacteristic(Characteristic.On)
+      .getCharacteristic(this.platform.Characteristic.On)
       .on(CharacteristicEventTypes.SET, async (yes: boolean, callback: Function) => {
         const status = yes ? Outlet.ON : Outlet.OFF;
         try {
@@ -63,9 +65,9 @@ export class Outlet extends ComelitAccessory<OutletDeviceData> {
 
   public update(data: OutletDeviceData) {
     const status = parseInt(data.status);
-    this.outletService.getCharacteristic(Characteristic.On).updateValue(status > 0);
+    this.outletService.getCharacteristic(this.platform.Characteristic.On).updateValue(status > 0);
     const power = parseFloat(data.instant_power);
-    this.outletService.getCharacteristic(Characteristic.InUse).updateValue(power > 0);
+    this.outletService.getCharacteristic(this.platform.Characteristic.InUse).updateValue(power > 0);
     this.outletService.getCharacteristic(Consumption).updateValue(`${data.instant_power} W`);
   }
 }
