@@ -1,17 +1,14 @@
 import { ComelitAccessory } from './comelit';
 import { BlindDeviceData, ComelitSbClient, ObjectStatus } from 'comelit-client';
-import {
-  Callback,
-  Categories,
-  Characteristic,
-  CharacteristicEventTypes,
-  Service,
-} from 'hap-nodejs';
-import { HomebridgeAPI } from '../index';
-import { PositionState } from 'hap-nodejs/dist/lib/gen/HomeKit';
+import { Callback, CharacteristicEventTypes, PlatformAccessory, Service } from 'homebridge';
+import { ComelitSbPlatform } from '../comelit-sb-platform';
 import Timeout = NodeJS.Timeout;
 
 export class Blind extends ComelitAccessory<BlindDeviceData> {
+  static readonly DECREASING = 0;
+  static readonly INCREASING = 1;
+  static readonly STOPPED = 2;
+
   static readonly OPEN = 100;
   static readonly CLOSED = 0;
 
@@ -24,34 +21,38 @@ export class Blind extends ComelitAccessory<BlindDeviceData> {
   private positionState: number;
 
   constructor(
-    log: Function,
-    device: BlindDeviceData,
-    name: string,
+    platform: ComelitSbPlatform,
+    accessory: PlatformAccessory,
     client: ComelitSbClient,
     sendStop: boolean,
     closingTime?: number
   ) {
-    super(log, device, name, client, Categories.WINDOW_COVERING);
+    super(platform, accessory, client);
     this.sendStop = sendStop;
     this.closingTime = (closingTime || Blind.OPENING_CLOSING_TIME) * 1000;
-    this.log(`Blind ${device.id} has closing time of ${this.closingTime}`);
+    this.log.info(`Blind ${this.device.id} has closing time of ${this.closingTime}`);
   }
 
   protected initServices(): Service[] {
     const accessoryInformation = this.initAccessoryInformation();
 
-    this.coveringService = new HomebridgeAPI.hap.Service.WindowCovering(
-      this.device.descrizione,
-      null
-    );
+    this.coveringService =
+      this.accessory.getService(this.platform.Service.WindowCovering) ||
+      this.accessory.addService(this.platform.Service.WindowCovering);
 
-    this.coveringService.setCharacteristic(Characteristic.PositionState, PositionState.STOPPED);
-    this.coveringService.setCharacteristic(Characteristic.TargetPosition, Blind.OPEN);
-    this.coveringService.setCharacteristic(Characteristic.CurrentPosition, Blind.OPEN);
-    this.positionState = PositionState.STOPPED;
+    this.coveringService.setCharacteristic(
+      this.platform.Characteristic.PositionState,
+      Blind.STOPPED
+    );
+    this.coveringService.setCharacteristic(this.platform.Characteristic.TargetPosition, Blind.OPEN);
+    this.coveringService.setCharacteristic(
+      this.platform.Characteristic.CurrentPosition,
+      Blind.OPEN
+    );
+    this.positionState = Blind.STOPPED;
 
     this.coveringService
-      .getCharacteristic(Characteristic.TargetPosition)
+      .getCharacteristic(this.platform.Characteristic.TargetPosition)
       .on(CharacteristicEventTypes.SET, async (position: number, callback: Callback) => {
         try {
           if (this.timeout) {
@@ -61,7 +62,7 @@ export class Blind extends ComelitAccessory<BlindDeviceData> {
           }
 
           const currentPosition = this.coveringService.getCharacteristic(
-            Characteristic.CurrentPosition
+            this.platform.Characteristic.CurrentPosition
           ).value as number;
           const status = position < currentPosition ? ObjectStatus.OFF : ObjectStatus.ON;
           await this.client.toggleDeviceStatus(parseInt(this.device.objectId), status, 'shutter');
@@ -84,12 +85,12 @@ export class Blind extends ComelitAccessory<BlindDeviceData> {
   private async resetTimeout() {
     // A timeout was set, this means that we are already opening or closing the blind
     // Stop the blind and calculate a rough position
-    this.log(`Stopping blind`);
+    this.log.info(`Stopping blind`);
     clearTimeout(this.timeout);
     this.timeout = null;
     await this.client.toggleDeviceStatus(
       parseInt(this.device.objectId),
-      this.positionState === PositionState.DECREASING ? ObjectStatus.ON : ObjectStatus.OFF,
+      this.positionState === Blind.DECREASING ? ObjectStatus.ON : ObjectStatus.OFF,
       'shutter'
     ); // stop the blind
   }
@@ -98,25 +99,25 @@ export class Blind extends ComelitAccessory<BlindDeviceData> {
     const status = parseInt(data.status);
     switch (status) {
       case ObjectStatus.ON:
-        this.positionState = PositionState.INCREASING;
+        this.positionState = Blind.INCREASING;
         break;
       case ObjectStatus.OFF: {
         this.coveringService
-          .getCharacteristic(Characteristic.TargetPosition)
-          .updateValue(this.positionState === PositionState.INCREASING ? Blind.OPEN : Blind.CLOSED);
+          .getCharacteristic(this.platform.Characteristic.TargetPosition)
+          .updateValue(this.positionState === Blind.INCREASING ? Blind.OPEN : Blind.CLOSED);
         this.coveringService
-          .getCharacteristic(Characteristic.CurrentPosition)
-          .updateValue(this.positionState === PositionState.INCREASING ? Blind.OPEN : Blind.CLOSED);
-        this.positionState = PositionState.STOPPED;
+          .getCharacteristic(this.platform.Characteristic.CurrentPosition)
+          .updateValue(this.positionState === Blind.INCREASING ? Blind.OPEN : Blind.CLOSED);
+        this.positionState = Blind.STOPPED;
         break;
       }
       case ObjectStatus.IDLE:
-        this.positionState = PositionState.DECREASING;
+        this.positionState = Blind.DECREASING;
         break;
     }
-    this.log(`Blind update: status ${status}, state ${this.positionState}`);
+    this.log.info(`Blind update: status ${status}, state ${this.positionState}`);
     this.coveringService
-      .getCharacteristic(Characteristic.PositionState)
+      .getCharacteristic(this.platform.Characteristic.PositionState)
       .updateValue(this.positionState);
   }
 }

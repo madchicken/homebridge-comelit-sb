@@ -1,14 +1,9 @@
 import { ComelitSbPlatform } from './comelit-sb-platform';
-import { Homebridge } from '../types';
+import { API } from 'homebridge';
 
-export let HomebridgeAPI: Homebridge;
+export let HomebridgeAPI: API;
 
-export default function(homebridge: Homebridge) {
+export default function(homebridge: API) {
   HomebridgeAPI = homebridge;
-  homebridge.registerPlatform(
-    'homebridge-comelit-sb',
-    'Comelit Serial Bridge',
-    ComelitSbPlatform,
-    true
-  );
+  homebridge.registerPlatform('Comelit Serial Bridge', ComelitSbPlatform);
 }

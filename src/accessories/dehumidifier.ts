@@ -1,33 +1,40 @@
 import { ComelitAccessory } from './comelit';
 import { ClimaMode, ClimaOnOff, ComelitSbClient, ThermostatDeviceData } from 'comelit-client';
-import {
-  Categories,
-  Characteristic,
-  CharacteristicEventTypes,
-  Service,
-  VoidCallback,
-} from 'hap-nodejs';
-import { HomebridgeAPI } from '../index';
-import {
-  Active,
-  CurrentHumidifierDehumidifierState,
-  TargetHumidifierDehumidifierState,
-} from 'hap-nodejs/dist/lib/gen/HomeKit';
+import { ComelitSbPlatform } from '../comelit-sb-platform';
+import { CharacteristicEventTypes, PlatformAccessory, Service, VoidCallback } from 'homebridge';
+
+enum TargetHumidifierDehumidifierState {
+  HUMIDIFIER_OR_DEHUMIDIFIER = 0,
+  HUMIDIFIER = 1,
+  DEHUMIDIFIER = 2,
+}
+
+enum CurrentHumidifierDehumidifierState {
+  INACTIVE = 0,
+  IDLE = 1,
+  HUMIDIFYING = 2,
+  DEHUMIDIFYING = 3,
+}
+
+enum Active {
+  INACTIVE,
+  ACTIVE,
+}
 
 export class Dehumidifier extends ComelitAccessory<ThermostatDeviceData> {
   private dehumidifierService: Service;
 
-  constructor(log: Function, device: ThermostatDeviceData, name: string, client: ComelitSbClient) {
-    super(log, device, name, client, Categories.AIR_CONDITIONER);
-    this.uuid_base = `${device.objectId}#D`;
+  constructor(platform: ComelitSbPlatform, accessory: PlatformAccessory, client: ComelitSbClient) {
+    super(platform, accessory, client);
   }
 
   protected initServices(): Service[] {
     const accessoryInformation = this.initAccessoryInformation();
-    this.dehumidifierService = new HomebridgeAPI.hap.Service.HumidifierDehumidifier(
-      this.device.descrizione,
-      null
-    );
+    this.dehumidifierService =
+      this.accessory.getService(this.platform.Service.HumidifierDehumidifier) ||
+      this.accessory.addService(this.platform.Service.HumidifierDehumidifier);
+
+    const Characteristic = this.platform.Characteristic;
     this.dehumidifierService.addOptionalCharacteristic(
       Characteristic.RelativeHumidityDehumidifierThreshold
     );
@@ -41,8 +48,8 @@ export class Dehumidifier extends ComelitAccessory<ThermostatDeviceData> {
       .getCharacteristic(Characteristic.RelativeHumidityDehumidifierThreshold)
       .on(CharacteristicEventTypes.SET, async (humidity: number, callback: VoidCallback) => {
         try {
-          this.log(
-            `Modifying target humidity threshold of ${this.name}-dehumidifier to ${humidity}%`
+          this.log.info(
+            `Modifying target humidity threshold of ${this.accessory.displayName}-dehumidifier to ${humidity}%`
           );
           await this.client.setHumidity(parseInt(this.device.id), humidity);
           this.device.soglia_attiva_umi = `${humidity}`;
@@ -56,7 +63,9 @@ export class Dehumidifier extends ComelitAccessory<ThermostatDeviceData> {
       .getCharacteristic(Characteristic.TargetHumidifierDehumidifierState)
       .on(CharacteristicEventTypes.SET, async (state: number, callback: VoidCallback) => {
         try {
-          this.log(`Modifying target state of ${this.name}-dehumidifier to ${state}`);
+          this.log.info(
+            `Modifying target state of ${this.accessory.displayName}-dehumidifier to ${state}`
+          );
           switch (state) {
             case TargetHumidifierDehumidifierState.DEHUMIDIFIER:
             case TargetHumidifierDehumidifierState.HUMIDIFIER:
@@ -76,7 +85,9 @@ export class Dehumidifier extends ComelitAccessory<ThermostatDeviceData> {
       .getCharacteristic(Characteristic.Active)
       .on(CharacteristicEventTypes.SET, async (state: number, callback: VoidCallback) => {
         try {
-          this.log(`Modifying active state of ${this.name}-dehumidifier to ${state}`);
+          this.log.info(
+            `Modifying active state of ${this.accessory.displayName}-dehumidifier to ${state}`
+          );
           switch (state) {
             case Active.ACTIVE:
               await this.client.switchHumidifierMode(parseInt(this.device.id), ClimaMode.MANUAL);
@@ -100,7 +111,9 @@ export class Dehumidifier extends ComelitAccessory<ThermostatDeviceData> {
     const isOff: boolean =
       data.auto_man_umi === ClimaMode.OFF_AUTO || data.auto_man_umi === ClimaMode.OFF_MANUAL;
     const isAuto: boolean = data.auto_man_umi === ClimaMode.AUTO;
-    this.log(`Dehumidifier ${this.name} auto mode is ${isAuto}, off ${isOff}`);
+    this.log.info(
+      `Dehumidifier ${this.accessory.displayName} auto mode is ${isAuto}, off ${isOff}`
+    );
 
     const isDehumidifierOff =
       data.auto_man_umi === ClimaMode.OFF_MANUAL ||
@@ -109,16 +122,16 @@ export class Dehumidifier extends ComelitAccessory<ThermostatDeviceData> {
     const isDehumidifierAuto = data.auto_man_umi === ClimaMode.AUTO;
 
     this.dehumidifierService
-      .getCharacteristic(Characteristic.CurrentRelativeHumidity)
+      .getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
       .updateValue(parseInt(data.umidita));
     this.dehumidifierService
-      .getCharacteristic(Characteristic.RelativeHumidityHumidifierThreshold)
+      .getCharacteristic(this.platform.Characteristic.RelativeHumidityHumidifierThreshold)
       .updateValue(parseInt(data.umidita));
     this.dehumidifierService
-      .getCharacteristic(Characteristic.RelativeHumidityDehumidifierThreshold)
+      .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
       .updateValue(parseInt(data.soglia_attiva_umi));
     this.dehumidifierService
-      .getCharacteristic(Characteristic.CurrentHumidifierDehumidifierState)
+      .getCharacteristic(this.platform.Characteristic.CurrentHumidifierDehumidifierState)
       .updateValue(
         isDehumidifierOff
           ? CurrentHumidifierDehumidifierState.INACTIVE
@@ -127,14 +140,14 @@ export class Dehumidifier extends ComelitAccessory<ThermostatDeviceData> {
           : CurrentHumidifierDehumidifierState.DEHUMIDIFYING
       );
     this.dehumidifierService
-      .getCharacteristic(Characteristic.TargetHumidifierDehumidifierState)
+      .getCharacteristic(this.platform.Characteristic.TargetHumidifierDehumidifierState)
       .updateValue(
         isDehumidifierAuto
           ? TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER
           : TargetHumidifierDehumidifierState.DEHUMIDIFIER
       );
     this.dehumidifierService
-      .getCharacteristic(Characteristic.Active)
+      .getCharacteristic(this.platform.Characteristic.Active)
       .updateValue(isDehumidifierOff ? Active.INACTIVE : Active.ACTIVE);
   }
 }

@@ -1,10 +1,11 @@
 import { ComelitAccessory } from './comelit';
-import { Categories, Service } from 'hap-nodejs';
+import { PlatformAccessory, Service } from 'homebridge';
 import { ComelitSbClient, SupplierDeviceData } from 'comelit-client';
+import { ComelitSbPlatform } from '../comelit-sb-platform';
 
 export class PowerSupplier extends ComelitAccessory<SupplierDeviceData> {
-  constructor(log: Function, device: SupplierDeviceData, name: string, client: ComelitSbClient) {
-    super(log, device, name, client, Categories.OTHER);
+  constructor(platform: ComelitSbPlatform, accessory: PlatformAccessory, client: ComelitSbClient) {
+    super(platform, accessory, client);
   }
 
   protected initServices(): Service[] {
