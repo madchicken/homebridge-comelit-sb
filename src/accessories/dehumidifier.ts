@@ -2,24 +2,11 @@ import { ComelitAccessory } from './comelit';
 import { ClimaMode, ClimaOnOff, ComelitSbClient, ThermostatDeviceData } from 'comelit-client';
 import { ComelitSbPlatform } from '../comelit-sb-platform';
 import { CharacteristicEventTypes, PlatformAccessory, Service, VoidCallback } from 'homebridge';
-
-enum TargetHumidifierDehumidifierState {
-  HUMIDIFIER_OR_DEHUMIDIFIER = 0,
-  HUMIDIFIER = 1,
-  DEHUMIDIFIER = 2,
-}
-
-enum CurrentHumidifierDehumidifierState {
-  INACTIVE = 0,
-  IDLE = 1,
-  HUMIDIFYING = 2,
-  DEHUMIDIFYING = 3,
-}
-
-enum Active {
-  INACTIVE,
-  ACTIVE,
-}
+import {
+  Active,
+  CurrentHumidifierDehumidifierState,
+  TargetHumidifierDehumidifierState,
+} from './hap';
 
 export class Dehumidifier extends ComelitAccessory<ThermostatDeviceData> {
   private dehumidifierService: Service;

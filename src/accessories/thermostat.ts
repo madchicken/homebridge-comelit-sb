@@ -8,18 +8,7 @@ import {
 } from 'comelit-client';
 import { ComelitSbPlatform } from '../comelit-sb-platform';
 import { CharacteristicEventTypes, PlatformAccessory, Service, VoidCallback } from 'homebridge';
-
-enum TargetHeatingCoolingState {
-  OFF = 0,
-  HEAT = 1,
-  COOL = 2,
-  AUTO = 3,
-}
-
-enum TemperatureDisplayUnits {
-  CELSIUS = 0,
-  FAHRENHEIT = 1,
-}
+import { TargetHeatingCoolingState, TemperatureDisplayUnits } from './hap';
 
 export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
   private thermostatService: Service;
