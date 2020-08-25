@@ -1,7 +1,12 @@
 import { ComelitAccessory } from './comelit';
-import { ComelitSbClient, OutletDeviceData } from 'comelit-client';
+import { ComelitSbClient, ObjectStatus, OutletDeviceData } from 'comelit-client';
 import { ComelitSbPlatform } from '../comelit-sb-platform';
-import { CharacteristicEventTypes, PlatformAccessory, Service } from 'homebridge';
+import {
+  CharacteristicEventTypes,
+  CharacteristicGetCallback,
+  PlatformAccessory,
+  Service,
+} from 'homebridge';
 
 export class Outlet extends ComelitAccessory<OutletDeviceData> {
   static readonly ON = 1;
@@ -32,12 +37,14 @@ export class Outlet extends ComelitAccessory<OutletDeviceData> {
       .on(CharacteristicEventTypes.SET, async (yes: boolean, callback: Function) => {
         const status = yes ? Outlet.ON : Outlet.OFF;
         try {
-          await this.client.toggleDeviceStatus(parseInt(this.device.objectId), status, 'other');
-          this.device.status = `${status}`;
+          await this.client.toggleDeviceStatus(this.id, status, 'other');
           callback();
         } catch (e) {
           callback(e);
         }
+      })
+      .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
+        callback(null, this.device.status === `${ObjectStatus.ON}`);
       });
 
     return [accessoryInformation, this.outletService];

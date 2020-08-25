@@ -1,4 +1,4 @@
-import { ComelitSbClient, DeviceData, HomeIndex, OBJECT_SUBTYPE } from 'comelit-client';
+import { ComelitSbClient, DeviceData, HomeIndex } from 'comelit-client';
 import { ComelitAccessory } from './accessories/comelit';
 import { Lightbulb } from './accessories/lightbulb';
 import { Thermostat } from './accessories/thermostat';
@@ -7,7 +7,6 @@ import { Outlet } from './accessories/outlet';
 import { PowerSupplier } from './accessories/power-supplier';
 
 import Timeout = NodeJS.Timeout;
-import { Dehumidifier } from './accessories/dehumidifier';
 import {
   API,
   APIEvent,
@@ -112,7 +111,7 @@ export class ComelitSbPlatform implements DynamicPlatformPlugin {
           this.mappedAccessories = new Map<string, ComelitAccessory<DeviceData>>();
         }
         this.log.info('Building accessories list...');
-        const homeIndex = await this.client.fecthHomeIndex();
+        const homeIndex = await this.client.fetchHomeIndex();
         if (homeIndex) {
           if (advanced.hide_lights !== true) {
             this.mapLights(homeIndex);
@@ -131,13 +130,13 @@ export class ComelitSbPlatform implements DynamicPlatformPlugin {
           }
         }
         this.log.info(`Found ${this.mappedAccessories.size} accessories`);
-        this.startPolling(homeIndex);
+        await this.startPolling(homeIndex);
       } else {
         this.log.error(`Invalid config: bridge_url config is missing, can't map accessories`);
         return;
       }
     } catch (e) {
-      this.log.info(e);
+      this.log.error(e);
     }
   }
 
@@ -236,14 +235,6 @@ export class ComelitSbPlatform implements DynamicPlatformPlugin {
           this.log.info(`Thermostat ID: ${id}, ${deviceData.descrizione}`);
           const accessory = this.createHapAccessory(deviceData, Categories.THERMOSTAT);
           this.mappedAccessories.set(id, new Thermostat(this, accessory, this.client));
-          if (deviceData.sub_type === OBJECT_SUBTYPE.CLIMA_THERMOSTAT_DEHUMIDIFIER) {
-            const accessory = this.createHapAccessory(
-              deviceData,
-              Categories.AIR_DEHUMIDIFIER,
-              `${id}#D`
-            );
-            this.mappedAccessories.set(`${id}#D`, new Dehumidifier(this, accessory, this.client));
-          }
         }
       });
     } catch (e) {
@@ -293,7 +284,7 @@ export class ComelitSbPlatform implements DynamicPlatformPlugin {
     try {
       const accessory = this.mappedAccessories.get(id);
       if (accessory) {
-        accessory.update(data);
+        accessory.updateDevice(data);
       }
     } catch (e) {
       this.log.info(e);

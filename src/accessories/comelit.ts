@@ -6,7 +6,7 @@ export abstract class ComelitAccessory<T extends DeviceData> implements Accessor
   readonly platform: ComelitSbPlatform;
   readonly accessory: PlatformAccessory;
   readonly log: Logger;
-  readonly device: T;
+  protected device: T;
   readonly client: ComelitSbClient;
 
   services: Service[];
@@ -24,6 +24,10 @@ export abstract class ComelitAccessory<T extends DeviceData> implements Accessor
     this.client = client;
     this.services = this.initServices();
     this.reachable = true;
+  }
+
+  get id(): number {
+    return parseInt(this.device.objectId);
   }
 
   getServices(): Service[] {
@@ -54,5 +58,10 @@ export abstract class ComelitAccessory<T extends DeviceData> implements Accessor
 
   protected abstract initServices(): Service[];
 
-  public abstract update(data: T): void;
+  protected abstract update(data: T): void;
+
+  updateDevice(data: T) {
+    this.device = { ...this.device, ...data };
+    this.update(data);
+  }
 }
