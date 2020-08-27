@@ -63,6 +63,7 @@ export class Lightbulb extends ComelitAccessory<LightDeviceData> {
             await this.client.toggleDeviceStatus(this.id, status, 'light');
             callback();
           } catch (e) {
+            this.log.error(e.message);
             callback(e);
           }
         }
