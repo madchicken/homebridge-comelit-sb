@@ -4,6 +4,7 @@ import {
   ClimaOnOff,
   ComelitSbClient,
   OBJECT_SUBTYPE,
+  STATUS_OFF,
   STATUS_ON,
   ThermoSeason,
   ThermostatDeviceData,
@@ -17,6 +18,7 @@ import {
 import { ComelitSbPlatform } from '../comelit-sb-platform';
 import {
   CharacteristicEventTypes,
+  CharacteristicGetCallback,
   CharacteristicSetCallback,
   PlatformAccessory,
   Service,
@@ -64,6 +66,15 @@ export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
           this.log.error(e.message);
           callback(e);
         }
+      })
+      .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
+        callback(null, parseInt(this.device.soglia_attiva) / 10);
+      });
+
+    service
+      .getCharacteristic(Characteristic.CurrentTemperature)
+      .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
+        callback(null, parseInt(this.device.temperatura) / 10);
       });
 
     service
@@ -107,6 +118,18 @@ export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
           this.log.error(e.message);
           callback(e);
         }
+      })
+      .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
+        const auto_man = this.device.auto_man;
+        const isOff = auto_man === ClimaMode.OFF_AUTO || auto_man === ClimaMode.OFF_MANUAL;
+        const isWinter = this.device.est_inv === ThermoSeason.WINTER;
+
+        const currentCoolingState = isOff
+          ? TargetHeatingCoolingState.OFF
+          : isWinter
+          ? TargetHeatingCoolingState.HEAT
+          : TargetHeatingCoolingState.COOL;
+        callback(null, currentCoolingState);
       });
 
     return service;
@@ -137,12 +160,15 @@ export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
           this.log.error(e.message);
           callback(e);
         }
+      })
+      .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
+        callback(null, parseInt(this.device.soglia_attiva_umi));
       });
 
     service
       .getCharacteristic(Characteristic.TargetHumidifierDehumidifierState)
       .setProps({
-        validValues: [0, 2],
+        validValues: [0, 2], // only show dehumidifier
       })
       .on(CharacteristicEventTypes.SET, async (state: number, callback: VoidCallback) => {
         try {
@@ -163,6 +189,15 @@ export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
           this.log.error(e.message);
           callback(e);
         }
+      })
+      .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
+        const auto_man = this.device.auto_man_umi;
+        const isAuto = auto_man === ClimaMode.OFF_AUTO || auto_man === ClimaMode.AUTO;
+        const targetState = isAuto
+          ? TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER
+          : TargetHumidifierDehumidifierState.DEHUMIDIFIER;
+
+        callback(null, targetState);
       });
 
     service
@@ -188,7 +223,13 @@ export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
             callback(e);
           }
         }
-      );
+      )
+      .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
+        const auto_man = this.device.auto_man_umi;
+        const isOn = auto_man === ClimaMode.AUTO || auto_man === ClimaMode.MANUAL;
+        const isWorking = isOn && this.device.status === STATUS_ON;
+        callback(null, isWorking);
+      });
 
     return service;
   }
@@ -223,7 +264,7 @@ export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
     const isWinter = data.est_inv === ThermoSeason.WINTER;
     const isAuto = auto_man === ClimaMode.OFF_AUTO || auto_man === ClimaMode.AUTO;
     const isOn = auto_man === ClimaMode.AUTO || auto_man === ClimaMode.MANUAL;
-    const isWorking = isOn && data.status === STATUS_ON;
+    const isWorking = isOn && data.status !== STATUS_OFF;
 
     const currentCoolingState = isOff
       ? TargetHeatingCoolingState.OFF
@@ -283,7 +324,7 @@ export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
       const isOff = auto_man === ClimaMode.OFF_AUTO || auto_man === ClimaMode.OFF_MANUAL;
       const isOn = auto_man === ClimaMode.AUTO || auto_man === ClimaMode.MANUAL;
       const isAuto = auto_man === ClimaMode.OFF_AUTO || auto_man === ClimaMode.AUTO;
-      const isWorking = isOn && data.status === STATUS_ON;
+      const isWorking = isOn && data.status !== STATUS_OFF;
       const currentDehumidifierState = isOff
         ? CurrentHumidifierDehumidifierState.INACTIVE
         : isWorking
