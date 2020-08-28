@@ -3,61 +3,90 @@ import {
   ClimaMode,
   ClimaOnOff,
   ComelitSbClient,
+  OBJECT_SUBTYPE,
+  STATUS_OFF,
   ThermoSeason,
   ThermostatDeviceData,
 } from 'comelit-client';
+import {
+  Active,
+  CurrentHumidifierDehumidifierState,
+  TargetHeatingCoolingState,
+  TargetHumidifierDehumidifierState,
+} from './hap';
 import { ComelitSbPlatform } from '../comelit-sb-platform';
-import { CharacteristicEventTypes, PlatformAccessory, Service, VoidCallback } from 'homebridge';
-import { TargetHeatingCoolingState, TemperatureDisplayUnits } from './hap';
+import {
+  CharacteristicEventTypes,
+  CharacteristicGetCallback,
+  CharacteristicSetCallback,
+  PlatformAccessory,
+  Service,
+  VoidCallback,
+} from 'homebridge';
 
 export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
-  private thermostatService: Service;
+  protected thermostatService: Service;
 
   constructor(platform: ComelitSbPlatform, accessory: PlatformAccessory, client: ComelitSbClient) {
     super(platform, accessory, client);
   }
 
+  get isDehumidifier() {
+    return this.device.sub_type === OBJECT_SUBTYPE.CLIMA_THERMOSTAT_DEHUMIDIFIER;
+  }
+
   protected initServices(): Service[] {
     const accessoryInformation = this.initAccessoryInformation();
+    this.thermostatService = this.initThermostatService();
+    const services = [accessoryInformation, this.thermostatService];
 
-    this.thermostatService =
+    if (this.isDehumidifier) {
+      this.dehumidifierService = this.initDehumidifierService();
+      services.push(this.dehumidifierService);
+    }
+
+    this.update(this.device);
+    return services;
+  }
+
+  protected initThermostatService(): Service {
+    const Characteristic = this.platform.Characteristic;
+    const service =
       this.accessory.getService(this.platform.Service.Thermostat) ||
       this.accessory.addService(this.platform.Service.Thermostat);
-    this.update(this.device);
 
-    this.thermostatService
-      .getCharacteristic(this.platform.Characteristic.TargetTemperature)
+    service
+      .getCharacteristic(Characteristic.TargetTemperature)
       .on(CharacteristicEventTypes.SET, async (temperature: number, callback: VoidCallback) => {
         try {
-          const currentTemperature = this.thermostatService.getCharacteristic(
-            this.platform.Characteristic.TargetTemperature
-          ).value;
-          const normalizedTemp = temperature * 10;
-          if (currentTemperature !== temperature) {
-            await this.client.setTemperature(parseInt(this.device.objectId), normalizedTemp);
-            this.device.temperatura = `${normalizedTemp}`;
-          }
+          await this.setTargetTemperature(temperature);
           callback();
         } catch (e) {
+          this.log.error(e.message);
           callback(e);
         }
+      })
+      .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
+        callback(null, parseInt(this.device.soglia_attiva) / 10);
       });
 
-    this.thermostatService
-      .getCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState)
+    service
+      .getCharacteristic(Characteristic.CurrentTemperature)
+      .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
+        callback(null, parseInt(this.device.temperatura) / 10);
+      });
+
+    service
+      .getCharacteristic(Characteristic.TargetHeatingCoolingState)
       .on(CharacteristicEventTypes.SET, async (state: number, callback: VoidCallback) => {
-        const currentState = this.thermostatService.getCharacteristic(
-          this.platform.Characteristic.TargetHeatingCoolingState
-        ).value;
+        const currentState = service.getCharacteristic(Characteristic.TargetHeatingCoolingState)
+          .value;
         try {
           if (currentState !== state) {
             this.log.info(`Modifying state of ${this.accessory.displayName} to ${state}`);
             if (currentState === TargetHeatingCoolingState.OFF) {
               // before doing anything, we need to turn on the thermostat
-              await this.client.toggleThermostatStatus(
-                parseInt(this.device.objectId),
-                ClimaOnOff.ON_THERMO
-              );
+              await this.client.toggleThermostatStatus(this.id, ClimaOnOff.ON_THERMO);
             }
 
             if (
@@ -65,105 +94,274 @@ export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
               state !== TargetHeatingCoolingState.OFF
             ) {
               // if in AUTO mode, switch to MANUAL here
-              await this.client.switchThermostatMode(
-                parseInt(this.device.objectId),
-                ClimaMode.MANUAL
-              );
+              await this.client.switchThermostatMode(this.id, ClimaMode.MANUAL);
             }
 
             switch (state) {
               case TargetHeatingCoolingState.AUTO:
-                await this.client.switchThermostatMode(
-                  parseInt(this.device.objectId),
-                  ClimaMode.AUTO
-                );
+                await this.client.switchThermostatMode(this.id, ClimaMode.AUTO);
                 break;
               case TargetHeatingCoolingState.COOL:
-                await this.client.switchThermostatSeason(
-                  parseInt(this.device.objectId),
-                  ThermoSeason.SUMMER
-                );
+                await this.client.switchThermostatSeason(this.id, ThermoSeason.SUMMER);
                 break;
               case TargetHeatingCoolingState.HEAT:
-                await this.client.switchThermostatSeason(
-                  parseInt(this.device.objectId),
-                  ThermoSeason.WINTER
-                );
+                await this.client.switchThermostatSeason(this.id, ThermoSeason.WINTER);
                 break;
               case TargetHeatingCoolingState.OFF:
-                await this.client.toggleThermostatStatus(
-                  parseInt(this.device.objectId),
-                  ClimaOnOff.OFF_THERMO
-                );
+                await this.client.toggleThermostatStatus(this.id, ClimaOnOff.OFF_THERMO);
                 break;
             }
           }
           callback();
         } catch (e) {
+          this.log.error(e.message);
           callback(e);
         }
+      })
+      .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
+        const auto_man = this.device.auto_man;
+        const isOff = auto_man === ClimaMode.OFF_AUTO || auto_man === ClimaMode.OFF_MANUAL;
+        const isWinter = this.device.est_inv === ThermoSeason.WINTER;
+
+        const currentCoolingState = isOff
+          ? TargetHeatingCoolingState.OFF
+          : isWinter
+          ? TargetHeatingCoolingState.HEAT
+          : TargetHeatingCoolingState.COOL;
+        callback(null, currentCoolingState);
       });
 
-    return [accessoryInformation, this.thermostatService];
+    return service;
+  }
+
+  protected dehumidifierService: Service;
+
+  private initDehumidifierService(): Service {
+    const Characteristic = this.platform.Characteristic;
+    const service =
+      this.accessory.getService(this.platform.Service.HumidifierDehumidifier) ||
+      this.accessory.addService(this.platform.Service.HumidifierDehumidifier);
+
+    service.addOptionalCharacteristic(Characteristic.RelativeHumidityDehumidifierThreshold);
+    service.addOptionalCharacteristic(Characteristic.RelativeHumidityHumidifierThreshold);
+    service.addOptionalCharacteristic(Characteristic.Active);
+
+    service
+      .getCharacteristic(Characteristic.RelativeHumidityDehumidifierThreshold)
+      .on(CharacteristicEventTypes.SET, async (humidity: number, callback: VoidCallback) => {
+        try {
+          this.log.info(
+            `Modifying target humidity threshold of ${this.accessory.displayName}-dehumidifier to ${humidity}%`
+          );
+          await this.client.setHumidity(this.id, humidity);
+          callback();
+        } catch (e) {
+          this.log.error(e.message);
+          callback(e);
+        }
+      })
+      .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
+        callback(null, parseInt(this.device.soglia_attiva_umi));
+      });
+
+    service
+      .getCharacteristic(Characteristic.TargetHumidifierDehumidifierState)
+      .setProps({
+        validValues: [0, 2], // only show dehumidifier
+      })
+      .on(CharacteristicEventTypes.SET, async (state: number, callback: VoidCallback) => {
+        try {
+          this.log.info(
+            `Modifying target state of ${this.accessory.displayName}-dehumidifier to ${state}`
+          );
+          switch (state) {
+            case TargetHumidifierDehumidifierState.DEHUMIDIFIER:
+            case TargetHumidifierDehumidifierState.HUMIDIFIER:
+              await this.client.switchHumidifierMode(this.id, ClimaMode.MANUAL);
+              break;
+            case TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER:
+              await this.client.switchHumidifierMode(this.id, ClimaMode.AUTO);
+              break;
+          }
+          callback();
+        } catch (e) {
+          this.log.error(e.message);
+          callback(e);
+        }
+      })
+      .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
+        const auto_man = this.device.auto_man_umi;
+        const isAuto = auto_man === ClimaMode.OFF_AUTO || auto_man === ClimaMode.AUTO;
+        const targetState = isAuto
+          ? TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER
+          : TargetHumidifierDehumidifierState.DEHUMIDIFIER;
+
+        callback(null, targetState);
+      });
+
+    service
+      .getCharacteristic(Characteristic.Active)
+      .on(
+        CharacteristicEventTypes.SET,
+        async (state: number, callback: CharacteristicSetCallback) => {
+          try {
+            this.log.info(
+              `Modifying active state of ${this.accessory.displayName}-dehumidifier to ${state}`
+            );
+            switch (state) {
+              case Active.ACTIVE:
+                await this.client.toggleHumidifierStatus(this.id, ClimaOnOff.ON_HUMI);
+                break;
+              case Active.INACTIVE:
+                await this.client.toggleHumidifierStatus(this.id, ClimaOnOff.OFF_HUMI);
+                break;
+            }
+            callback();
+          } catch (e) {
+            this.log.error(e.message);
+            callback(e);
+          }
+        }
+      )
+      .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
+        const auto_man = this.device.auto_man_umi;
+        const isOn = auto_man === ClimaMode.AUTO || auto_man === ClimaMode.MANUAL;
+        const isWorking = isOn && this.device.status !== STATUS_OFF;
+        callback(null, isWorking);
+      });
+
+    return service;
+  }
+
+  private async setTargetTemperature(temperature: number) {
+    const Characteristic = this.platform.Characteristic;
+    const currentTemperature = this.thermostatService.getCharacteristic(
+      Characteristic.TargetTemperature
+    ).value;
+    const normalizedTemp = temperature * 10;
+    if (currentTemperature !== temperature) {
+      await this.client.setTemperature(this.id, normalizedTemp);
+    }
   }
 
   public update(data: ThermostatDeviceData): void {
-    const currentCoolingState = this.isOff()
+    try {
+      this.updateThermostat(data);
+      if (this.isDehumidifier) {
+        this.updateDehumidifier(data);
+      }
+    } catch (e) {
+      this.log.error(e);
+    }
+  }
+
+  public updateThermostat(data: ThermostatDeviceData): void {
+    const Characteristic = this.platform.Characteristic;
+
+    const auto_man = data.auto_man;
+    const isOff = auto_man === ClimaMode.OFF_AUTO || auto_man === ClimaMode.OFF_MANUAL;
+    const isWinter = data.est_inv === ThermoSeason.WINTER;
+    const isAuto = auto_man === ClimaMode.OFF_AUTO || auto_man === ClimaMode.AUTO;
+    const isOn = auto_man === ClimaMode.AUTO || auto_man === ClimaMode.MANUAL;
+    const isWorking = isOn && data.status !== STATUS_OFF;
+
+    const currentCoolingState = isOff
       ? TargetHeatingCoolingState.OFF
-      : this.isWinter()
+      : isWinter
       ? TargetHeatingCoolingState.HEAT
       : TargetHeatingCoolingState.COOL;
-    this.thermostatService
-      .getCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState)
-      .updateValue(currentCoolingState);
 
-    let targetState;
-    if (this.isOff()) {
+    let targetState: TargetHeatingCoolingState;
+    if (isOff) {
       targetState = TargetHeatingCoolingState.OFF;
-    } else if (this.isAuto()) {
+    } else if (isAuto) {
       targetState = TargetHeatingCoolingState.AUTO;
     } else {
-      if (this.isWinter()) {
+      if (isWinter) {
         targetState = TargetHeatingCoolingState.HEAT;
       } else {
         targetState = TargetHeatingCoolingState.COOL;
       }
     }
-    this.thermostatService
-      .getCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState)
-      .updateValue(targetState);
 
-    console.log(
-      `Current cooling state is now ${currentCoolingState}, target state is ${targetState}`
-    );
     const temperature = data.temperatura ? parseFloat(data.temperatura) / 10 : 0;
-    this.log.info(`Temperature for ${this.accessory.displayName} is ${temperature}`);
-    this.thermostatService
-      .getCharacteristic(this.platform.Characteristic.CurrentTemperature)
-      .updateValue(temperature);
-
-    const activeThreshold = data.soglia_attiva;
-    const targetTemperature = activeThreshold ? parseFloat(activeThreshold) / 10 : 0;
-    this.log.info(`Threshold for ${this.accessory.displayName} is ${targetTemperature}`);
-    this.thermostatService
-      .getCharacteristic(this.platform.Characteristic.TargetTemperature)
-      .updateValue(targetTemperature);
-    this.thermostatService
-      .getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits)
-      .updateValue(TemperatureDisplayUnits.CELSIUS);
-  }
-
-  isOff(): boolean {
-    return (
-      this.device.auto_man === ClimaMode.OFF_AUTO || this.device.auto_man === ClimaMode.OFF_MANUAL
+    const targetTemperature = data.soglia_attiva ? parseFloat(data.soglia_attiva) / 10 : 0;
+    this.log.info(
+      `${data.objectId} - ${this.accessory.displayName}:\nThermostat status ${
+        isOff ? 'OFF' : 'ON'
+      }, ${isAuto ? 'auto mode' : 'manual mode'}, ${
+        data.est_inv === ThermoSeason.WINTER ? 'winter' : 'summer'
+      }, Temperature ${temperature}°, threshold ${targetTemperature}° (currently ${
+        isWorking ? 'active' : 'not active'
+      }`
     );
+
+    this.thermostatService.updateCharacteristic(
+      Characteristic.CurrentHeatingCoolingState,
+      currentCoolingState
+    );
+
+    this.thermostatService.updateCharacteristic(
+      Characteristic.TargetHeatingCoolingState,
+      targetState
+    );
+
+    this.thermostatService.updateCharacteristic(Characteristic.CurrentTemperature, temperature);
+
+    this.thermostatService.updateCharacteristic(
+      Characteristic.TargetTemperature,
+      targetTemperature
+    );
+
+    this.thermostatService.updateCharacteristic(Characteristic.Active, isOn);
   }
 
-  isAuto(): boolean {
-    return this.device.auto_man === ClimaMode.OFF_AUTO || this.device.auto_man === ClimaMode.AUTO;
-  }
+  public updateDehumidifier(data: ThermostatDeviceData): void {
+    if (this.dehumidifierService) {
+      const Characteristic = this.platform.Characteristic;
+      const auto_man = data.auto_man_umi;
+      const isOff = auto_man === ClimaMode.OFF_AUTO || auto_man === ClimaMode.OFF_MANUAL;
+      const isOn = auto_man === ClimaMode.AUTO || auto_man === ClimaMode.MANUAL;
+      const isAuto = auto_man === ClimaMode.OFF_AUTO || auto_man === ClimaMode.AUTO;
+      const isWorking = isOn && data.status !== STATUS_OFF;
+      const currentDehumidifierState = isOff
+        ? CurrentHumidifierDehumidifierState.INACTIVE
+        : isWorking
+        ? CurrentHumidifierDehumidifierState.DEHUMIDIFYING
+        : CurrentHumidifierDehumidifierState.IDLE;
+      const targetState = isAuto
+        ? TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER
+        : TargetHumidifierDehumidifierState.DEHUMIDIFIER;
 
-  isWinter(): boolean {
-    return this.device.est_inv === ThermoSeason.WINTER;
+      console.log(
+        `Dehumidifier status is ${isOff ? 'OFF' : 'ON'}, ${
+          isAuto ? 'auto mode' : 'manual mode'
+        }, Humidity level ${parseInt(data.umidita)}%, threshold ${
+          data.soglia_attiva_umi
+        }%\nGeneral status is ${data.status !== STATUS_OFF ? 'ON' : 'OFF'}`
+      );
+
+      this.dehumidifierService.updateCharacteristic(
+        Characteristic.CurrentRelativeHumidity,
+        parseInt(data.umidita)
+      );
+      this.dehumidifierService.updateCharacteristic(
+        Characteristic.RelativeHumidityHumidifierThreshold,
+        parseInt(data.soglia_attiva_umi)
+      );
+      this.dehumidifierService.updateCharacteristic(
+        Characteristic.RelativeHumidityDehumidifierThreshold,
+        parseInt(data.soglia_attiva_umi)
+      );
+      this.dehumidifierService.updateCharacteristic(
+        Characteristic.CurrentHumidifierDehumidifierState,
+        currentDehumidifierState
+      );
+      this.dehumidifierService.updateCharacteristic(
+        Characteristic.TargetHumidifierDehumidifierState,
+        targetState
+      );
+      this.dehumidifierService.updateCharacteristic(Characteristic.Active, isOn);
+    }
   }
 }

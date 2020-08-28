@@ -2,7 +2,13 @@ import { ComelitAccessory } from './comelit';
 import { ComelitSbClient, LightDeviceData, ObjectStatus } from 'comelit-client';
 import { HomebridgeAPI } from '../index';
 import { ComelitSbPlatform } from '../comelit-sb-platform';
-import { CharacteristicEventTypes, PlatformAccessory, Service } from 'homebridge';
+import {
+  CharacteristicEventTypes,
+  CharacteristicGetCallback,
+  CharacteristicSetCallback,
+  PlatformAccessory,
+  Service,
+} from 'homebridge';
 
 export class Lightbulb extends ComelitAccessory<LightDeviceData> {
   private lightbulbService: Service;
@@ -49,25 +55,30 @@ export class Lightbulb extends ComelitAccessory<LightDeviceData> {
 
     this.lightbulbService
       .getCharacteristic(this.platform.Characteristic.On)
-      .on(CharacteristicEventTypes.SET, async (yes: boolean, callback: Function) => {
-        const status = yes ? ObjectStatus.ON : ObjectStatus.OFF;
-        try {
-          await this.client.toggleDeviceStatus(parseInt(this.device.objectId), status, 'light');
-          this.device.status = `${status}`;
-          callback();
-        } catch (e) {
-          callback(e);
+      .on(
+        CharacteristicEventTypes.SET,
+        async (yes: boolean, callback: CharacteristicSetCallback) => {
+          const status = yes ? ObjectStatus.ON : ObjectStatus.OFF;
+          try {
+            await this.client.toggleDeviceStatus(this.id, status, 'light');
+            callback();
+          } catch (e) {
+            this.log.error(e.message);
+            callback(e);
+          }
         }
+      )
+      .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
+        callback(null, this.device.status === `${ObjectStatus.ON}`);
       });
 
     return [accessoryInformation, this.lightbulbService];
   }
 
   public update(data: LightDeviceData) {
+    const Characteristic = this.platform.Characteristic;
     const status = parseInt(data.status) === ObjectStatus.ON;
-    console.log(
-      `Updating status of light ${parseInt(this.device.objectId)}. New status is ${status}`
-    );
-    this.lightbulbService.getCharacteristic(this.platform.Characteristic.On).updateValue(status);
+    console.log(`Updating status of light ${this.id}. New status is ${status}`);
+    this.lightbulbService.getCharacteristic(Characteristic.On).updateValue(status);
   }
 }
