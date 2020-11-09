@@ -1,6 +1,6 @@
 {
   "name": "homebridge-comelit-sb-platform",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "author": "Pierpaolo Follia",
   "repository": {
     "type": "git",
@@ -38,9 +38,9 @@
     }
   },
   "dependencies": {
-    "comelit-client": "1.7.5",
-    "lodash": "^4.17.19",
-    "typescript": "^3.9.7"
+    "comelit-client": "2.2.2",
+    "lodash": "4.17.20",
+    "typescript": "3.9.7"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.149",
