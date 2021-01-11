@@ -27,6 +27,7 @@ export interface HubConfig extends PlatformConfig {
     blind_closing_time?: number;
     update_rate_sec?: number;
     avoid_duplicates?: boolean;
+    invert_plugs_status?: boolean;
     hide_lights?: boolean;
     hide_blinds?: boolean;
     hide_thermostats?: boolean;
@@ -191,7 +192,10 @@ export class ComelitSbPlatform implements DynamicPlatformPlugin {
         if (deviceData) {
           this.log.info(`Outlet ID: ${id}, ${deviceData.descrizione}`);
           const accessory = this.createHapAccessory(deviceData, Categories.OUTLET);
-          this.mappedAccessories.set(id, new Outlet(this, accessory, this.client));
+          this.mappedAccessories.set(
+            id,
+            new Outlet(this, accessory, this.client, this.config.advanced.invert_plugs_status)
+          );
         }
       });
     } catch (e) {

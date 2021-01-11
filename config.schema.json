@@ -55,6 +55,11 @@
             "type": "boolean",
             "default": false
           },
+          "invert_plugs_status": {
+            "title": "Make plugs to work in Normally Open mode (default is NC)",
+            "type": "boolean",
+            "default": false
+          },
           "hide_lights": {
             "title": "Avoid mapping lights",
             "type": "boolean",

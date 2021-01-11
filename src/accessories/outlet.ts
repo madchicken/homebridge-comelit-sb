@@ -1,5 +1,5 @@
 import { ComelitAccessory } from './comelit';
-import { ComelitSbClient, ObjectStatus, OutletDeviceData } from 'comelit-client';
+import { ComelitSbClient, OutletDeviceData } from 'comelit-client';
 import { ComelitSbPlatform } from '../comelit-sb-platform';
 import {
   CharacteristicEventTypes,
@@ -9,13 +9,22 @@ import {
 } from 'homebridge';
 
 export class Outlet extends ComelitAccessory<OutletDeviceData> {
-  static readonly ON = 1;
-  static readonly OFF = 0;
+  static ON = 1;
+  static OFF = 0;
 
   private outletService: Service;
 
-  constructor(platform: ComelitSbPlatform, accessory: PlatformAccessory, client: ComelitSbClient) {
+  constructor(
+    platform: ComelitSbPlatform,
+    accessory: PlatformAccessory,
+    client: ComelitSbClient,
+    invertStatus: boolean = false
+  ) {
     super(platform, accessory, client);
+    if (invertStatus) {
+      Outlet.ON = 0;
+      Outlet.OFF = 1;
+    }
   }
 
   protected initServices(): Service[] {
@@ -45,7 +54,7 @@ export class Outlet extends ComelitAccessory<OutletDeviceData> {
         }
       })
       .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
-        callback(null, this.device.status === `${ObjectStatus.ON}`);
+        callback(null, this.device.status === `${Outlet.ON}`);
       });
 
     return [accessoryInformation, this.outletService];
@@ -53,8 +62,8 @@ export class Outlet extends ComelitAccessory<OutletDeviceData> {
 
   public update(data: OutletDeviceData) {
     const status = parseInt(data.status);
-    this.outletService.getCharacteristic(this.platform.Characteristic.On).updateValue(status > 0);
+    this.outletService.updateCharacteristic(this.platform.Characteristic.On, status === Outlet.ON);
     const power = parseFloat(data.instant_power);
-    this.outletService.getCharacteristic(this.platform.Characteristic.InUse).updateValue(power > 0);
+    this.outletService.updateCharacteristic(this.platform.Characteristic.InUse, power > 0);
   }
 }
