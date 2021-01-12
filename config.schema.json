@@ -110,7 +110,14 @@
         "advanced.update_rate_sec",
         "advanced.avoid_duplicates",
         "advanced.stop_blinds",
-        "advanced.blind_closing_time"
+        "advanced.blind_closing_time",
+        "invert_plugs_status",
+        "hide_lights",
+        "hide_blinds",
+        "hide_thermostats",
+        "hide_dehumidifiers",
+        "hide_power_suppliers",
+        "hide_outlets"
       ]
     }
   ]
