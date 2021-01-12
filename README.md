@@ -59,6 +59,7 @@ The plugin configuration allows you to add some special parameter in the `advanc
 - `hide_dehumidifiers`: boolean - true to hide dehumidifiers to HomeKit
 - `hide_power_suppliers`: boolean - true to hide power suppliers (aka "Controllo Carichi") to HomeKit
 - `hide_outlets`: boolean - true to hide outlets to HomeKit
+- `invert_plugs_status`: boolean to use outlets in N/O mode (instead of N/C)
 
 Example of advanced config:
 
@@ -85,6 +86,9 @@ Example of advanced config:
 - 1.2.1 - Bug fixing
 - 1.2.2 - Do not map dehumidifier if not supported by the system
 - 2.0.0 - Homebridge 1.1.0 compatibility update
+- 2.1.0 - Bug fixing
+- 2.2.0 - Bug fixing
+- 2.3.0 - Added `invert_plugs_status` flag for outlets
 
 ## Screenshots
 
