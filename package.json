@@ -1,6 +1,6 @@
 {
   "name": "homebridge-comelit-sb-platform",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "author": "Pierpaolo Follia",
   "repository": {
     "type": "git",
@@ -38,16 +38,16 @@
     }
   },
   "dependencies": {
-    "comelit-client": "^2.2.3",
-    "lodash": "^4.17.20",
-    "typescript": "^4.1.3"
+    "comelit-client": "^2.3.2",
+    "lodash": "^4.17.21",
+    "typescript": "^4.3.4"
   },
   "devDependencies": {
-    "@types/lodash": "^4.14.167",
-    "@types/node": "^12.19.12",
+    "@types/lodash": "^4.14.170",
+    "@types/node": "^12.19.16",
     "@typescript-eslint/eslint-plugin": "^2.34.0",
     "@typescript-eslint/parser": "^2.34.0",
-    "homebridge": "^1.1.7",
+    "homebridge": "^1.3.4",
     "eslint": "^6.8.0",
     "eslint-config-prettier": "^6.15.0",
     "eslint-plugin-prettier": "^3.3.1",

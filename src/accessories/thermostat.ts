@@ -318,7 +318,10 @@ export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
 
     const temperature = data.temperatura ? parseFloat(data.temperatura) / 10 : 0;
     this.temperatureService.updateCharacteristic(Characteristic.CurrentTemperature, temperature);
-    const targetTemperature = data.soglia_attiva ? parseFloat(data.soglia_attiva) / 10 : 0;
+    const targetTemperature = Math.max(
+      10,
+      data.soglia_attiva ? parseFloat(data.soglia_attiva) / 10 : 0
+    );
     this.log.info(
       `${data.objectId} - ${this.accessory.displayName}:\nThermostat status ${
         isOff ? 'OFF' : 'ON'
@@ -366,8 +369,8 @@ export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
         ? TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER
         : TargetHumidifierDehumidifierState.DEHUMIDIFIER;
 
-      let humidityThreshold = parseInt(data.soglia_attiva_umi, 10) / 10;
-      const humidity = parseInt(data.umidita, 10) / 10;
+      const humidityThreshold = Math.min(100, parseInt(data.soglia_attiva_umi, 10) / 10);
+      const humidity = Math.min(100, parseInt(data.umidita, 10) / 10);
       console.log(
         `Dehumidifier status is ${isOff ? 'OFF' : 'ON'}, ${
           isAuto ? 'auto mode' : 'manual mode'
