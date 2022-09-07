@@ -179,7 +179,7 @@ export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
         }
       })
       .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
-        callback(null, parseInt(this.device.soglia_attiva_umi));
+        callback(null, Math.min(100, parseInt(this.device.soglia_attiva_umi) / 10));
       });
 
     service
@@ -260,7 +260,7 @@ export class Thermostat extends ComelitAccessory<ThermostatDeviceData> {
     service
       .getCharacteristic(Characteristic.CurrentRelativeHumidity)
       .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
-        callback(null, parseInt(this.device.umidita));
+        callback(null, Math.min(100, parseInt(this.device.umidita) / 10));
       });
     return service;
   }
