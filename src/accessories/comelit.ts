@@ -47,12 +47,9 @@ export abstract class ComelitAccessory<T extends DeviceData> implements Accessor
     accessoryInformation!
       .setCharacteristic(this.platform.Characteristic.Name, this.accessory.displayName)
       .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Comelit')
-      .setCharacteristic(this.platform.Characteristic.Model, 'None')
+      .setCharacteristic(this.platform.Characteristic.Model, this.accessory.context.objectId)
       .setCharacteristic(this.platform.Characteristic.FirmwareRevision, 'None')
-      .setCharacteristic(
-        this.platform.Characteristic.SerialNumber,
-        this.accessory.context.objectId
-      );
+      .setCharacteristic(this.platform.Characteristic.SerialNumber, '1.0.0');
     return accessoryInformation;
   }
 
