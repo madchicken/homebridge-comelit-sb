@@ -6,7 +6,6 @@ export abstract class ComelitAccessory<T extends DeviceData> implements Accessor
   readonly platform: ComelitSbPlatform;
   readonly accessory: PlatformAccessory;
   readonly log: Logger;
-  protected device: T;
   readonly client: ComelitSbClient;
 
   services: Service[];
@@ -19,11 +18,18 @@ export abstract class ComelitAccessory<T extends DeviceData> implements Accessor
   ) {
     this.platform = platform;
     this.accessory = accessory;
-    this.device = this.accessory.context as T;
     this.log = platform.log;
     this.client = client;
     this.services = this.initServices();
     this.reachable = true;
+  }
+
+  get device(): T {
+    return this.accessory.context as T;
+  }
+
+  set device(data: T) {
+    this.accessory.context = data;
   }
 
   get id(): number {
@@ -47,7 +53,7 @@ export abstract class ComelitAccessory<T extends DeviceData> implements Accessor
     accessoryInformation!
       .setCharacteristic(this.platform.Characteristic.Name, this.accessory.displayName)
       .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Comelit')
-      .setCharacteristic(this.platform.Characteristic.Model, this.accessory.context.objectId)
+      .setCharacteristic(this.platform.Characteristic.Model, 'None')
       .setCharacteristic(this.platform.Characteristic.FirmwareRevision, 'None')
       .setCharacteristic(this.platform.Characteristic.SerialNumber, '1.0.0');
     return accessoryInformation;

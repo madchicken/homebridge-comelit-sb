@@ -60,8 +60,16 @@ export class Lightbulb extends ComelitAccessory<LightDeviceData> {
         async (yes: boolean, callback: CharacteristicSetCallback) => {
           const status = yes ? ObjectStatus.ON : ObjectStatus.OFF;
           try {
-            await this.client.toggleDeviceStatus(this.id, status, 'light');
-            callback();
+            const success = await this.client.toggleDeviceStatus(this.id, status, 'light');
+            if (success) {
+              callback();
+            } else {
+              callback(
+                new Error(
+                  `Something went wrong calling toggleDeviceStatus for light ${this.device.descrizione}`
+                )
+              );
+            }
           } catch (e) {
             this.log.error(e.message);
             callback(e);

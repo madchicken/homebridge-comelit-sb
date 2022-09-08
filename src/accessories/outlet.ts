@@ -4,6 +4,7 @@ import { ComelitSbPlatform } from '../comelit-sb-platform';
 import {
   CharacteristicEventTypes,
   CharacteristicGetCallback,
+  CharacteristicSetCallback,
   PlatformAccessory,
   Service,
 } from 'homebridge';
@@ -43,16 +44,30 @@ export class Outlet extends ComelitAccessory<OutletDeviceData> {
       });
     this.outletService
       .getCharacteristic(this.platform.Characteristic.On)
-      .on(CharacteristicEventTypes.SET, async (yes: boolean, callback: Function) => {
-        const status = yes ? Outlet.ON : Outlet.OFF;
-        try {
-          await this.client.toggleDeviceStatus(this.id, status, 'other');
-          callback();
-        } catch (e) {
-          this.log.error(e.message);
-          callback(e);
+      .on(
+        CharacteristicEventTypes.SET,
+        async (yes: boolean, callback: CharacteristicSetCallback) => {
+          const status = yes ? Outlet.ON : Outlet.OFF;
+          try {
+            this.log.debug(
+              `Setting outlet status to ${status} for outlet ${this.device.descrizione}`
+            );
+            const success = await this.client.toggleDeviceStatus(this.id, status, 'other');
+            if (success) {
+              callback();
+            } else {
+              callback(
+                new Error(
+                  `Something went wrong calling toggleDeviceStatus for outlet ${this.device.descrizione}`
+                )
+              );
+            }
+          } catch (e) {
+            this.log.error(e.message);
+            callback(e);
+          }
         }
-      })
+      )
       .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
         callback(null, this.device.status === `${Outlet.ON}`);
       });
