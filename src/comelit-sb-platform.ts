@@ -22,6 +22,8 @@ import {
 export interface HubConfig extends PlatformConfig {
   bridge_url: string;
   bridge_port?: number;
+  bridge_username?: string;
+  bridge_password?: string;
   advanced: {
     stop_blinds: boolean;
     blind_closing_time?: number;
@@ -103,6 +105,8 @@ export class ComelitSbPlatform implements DynamicPlatformPlugin {
         this.client = new ComelitSbClient(
           this.config.bridge_url,
           this.config.bridge_port,
+          this.config.bridge_username,
+          this.config.bridge_password,
           this.updateAccessory.bind(this),
           this.log
         );

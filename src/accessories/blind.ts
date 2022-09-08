@@ -1,6 +1,11 @@
 import { ComelitAccessory } from './comelit';
 import { BlindDeviceData, ComelitSbClient, ObjectStatus } from 'comelit-client';
-import { Callback, CharacteristicEventTypes, PlatformAccessory, Service } from 'homebridge';
+import {
+  CharacteristicEventTypes,
+  PlatformAccessory,
+  Service,
+  CharacteristicSetCallback,
+} from 'homebridge';
 import { ComelitSbPlatform } from '../comelit-sb-platform';
 import Timeout = NodeJS.Timeout;
 
@@ -53,32 +58,35 @@ export class Blind extends ComelitAccessory<BlindDeviceData> {
 
     this.coveringService
       .getCharacteristic(this.platform.Characteristic.TargetPosition)
-      .on(CharacteristicEventTypes.SET, async (position: number, callback: Callback) => {
-        try {
-          if (this.timeout) {
-            await this.resetTimeout();
-            callback();
-            return;
-          }
-
-          const currentPosition = this.coveringService.getCharacteristic(
-            this.platform.Characteristic.CurrentPosition
-          ).value as number;
-          const status = position < currentPosition ? ObjectStatus.OFF : ObjectStatus.ON;
-          await this.client.toggleDeviceStatus(this.id, status, 'shutter');
-          this.timeout = setTimeout(async () => {
-            if (this.sendStop) {
-              this.resetTimeout();
-            } else {
-              this.timeout = null;
+      .on(
+        CharacteristicEventTypes.SET,
+        async (position: number, callback: CharacteristicSetCallback) => {
+          try {
+            if (this.timeout) {
+              await this.resetTimeout();
+              callback();
+              return;
             }
-          }, this.closingTime);
-          callback();
-        } catch (e) {
-          this.log.error(e.message);
-          callback(e);
+
+            const currentPosition = this.coveringService.getCharacteristic(
+              this.platform.Characteristic.CurrentPosition
+            ).value as number;
+            const status = position < currentPosition ? ObjectStatus.OFF : ObjectStatus.ON;
+            await this.client.toggleDeviceStatus(this.id, status, 'shutter');
+            this.timeout = setTimeout(async () => {
+              if (this.sendStop) {
+                await this.resetTimeout();
+              } else {
+                this.timeout = null;
+              }
+            }, this.closingTime);
+            callback();
+          } catch (e) {
+            this.log.error(e.message);
+            callback(e);
+          }
         }
-      });
+      );
 
     return [accessoryInformation, this.coveringService];
   }

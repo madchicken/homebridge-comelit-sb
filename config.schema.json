@@ -25,6 +25,16 @@
         "required": false,
         "default": 80
       },
+      "bridge_username": {
+        "title": "Bridge Username (if the web interface is under basic authentication)",
+        "type": "string",
+        "required": false
+      },
+      "bridge_password": {
+        "title": "Bridge Password (if the web interface is under basic authentication)",
+        "type": "password",
+        "required": false
+      },
       "advanced": {
         "title": "Advanced configuration",
         "type": "object",
@@ -99,7 +109,7 @@
       "type": "fieldset",
       "expandable": false,
       "title": "Main settings",
-      "items": ["name", "bridge_url", "bridge_port"]
+      "items": ["name", "bridge_url", "bridge_port", "bridge_username", "bridge_password"]
     },
     {
       "type": "fieldset",
