@@ -9,7 +9,7 @@
 [![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
 ![Comelit](https://github.com/madchicken/homebridge-comelit-hub/raw/master/images/comelit.png)
 
-This is an Homebridge platform plugin to expose Comelit Serial Bridge Automation to Apple HomeKit and use it with Siri.
+This is an Homebridge platform plugin to expose [Comelit Serial Bridge Automation](https://www.comelitgroup.com/en/systems/home-automation/system-managers/serial-bridge-page/) to Apple HomeKit and use it with Siri.
 The code uses API exposed by the official Comelit WEB admin.
 
 Currently supported devices:
